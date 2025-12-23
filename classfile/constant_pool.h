@@ -86,7 +86,7 @@ public:
         }
 
         return std::get<T>(entry);
-    };
+    }
 };
 
 template <typename>
