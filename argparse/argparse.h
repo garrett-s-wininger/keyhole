@@ -1,0 +1,157 @@
+#ifndef ARGPARSE_H
+#define ARGPARSE_H
+
+#include <expected>
+#include <functional>
+#include <print>
+#include <span>
+
+using namespace std::literals;
+
+namespace argparse {
+
+struct Error {
+    enum Type {
+        CommandExecutionFailure,
+        InvalidSubcommand,
+        MalformedArgumentList
+    };
+
+    Type type;
+    std::string message;
+};
+
+template <std::size_t S>
+struct NonTypeTemplateString {
+    char buffer[S];
+
+    constexpr NonTypeTemplateString(const char (&str)[S]) {
+        std::copy_n(str, S, buffer);
+    }
+
+    constexpr operator std::string_view() const {
+        return {buffer, S - 1};
+    }
+};
+
+template <NonTypeTemplateString Name, auto ExecuteFn>
+    requires std::invocable<decltype(ExecuteFn), std::string_view> &&
+        std::is_same_v<
+            std::expected<void, Error>,
+            std::invoke_result_t<decltype(ExecuteFn), std::string_view>
+        >
+struct Command {
+    static constexpr std::string_view name = Name;
+
+    static auto execute(std::string_view path, std::span<const char*> args)
+            -> std::expected<void, Error> {
+        if (args.size() != 2) {
+            usage(path);
+
+            return std::unexpected(
+                Error{
+                    Error::Type::MalformedArgumentList,
+                    "Commands must receive a single positional argument"
+                }
+            );
+        }
+
+        return std::invoke(ExecuteFn, args[1]);
+    }
+
+    static auto usage(std::string_view path) -> void {
+        std::println(stderr, "Usage:");
+        std::println(stderr, " {} {} <ARGS>", path, name);
+    }
+};
+
+template <typename... Subcommands>
+struct CLI {
+    static_assert(
+        sizeof...(Subcommands) > 0,
+        "CLIs must have at least one subcommand"
+    );
+
+    std::string_view name;
+    std::string_view version;
+    std::string_view description;
+
+    auto execute(const int argc, const char** argv)
+            -> std::expected<void, Error> {
+        const auto args = std::span<const char*>(
+            argv,
+            static_cast<std::size_t>(argc)
+        );
+
+        const auto& head = args[0];
+
+        // TODO(garrett): Flag parsing/support
+
+        if (args.size() < 2) {
+            usage(head, stderr);
+
+            return std::unexpected(
+                Error{
+                    Error::Type::MalformedArgumentList,
+                    "A subcommand must be invoked"
+                }
+            );
+        }
+
+        const auto& next = args[1];
+
+        if (next == "-h"sv || next == "--help"sv) {
+            help(head);
+            return {};
+        }
+
+        std::optional<std::expected<void, Error>> dispatch_result = std::nullopt;
+
+        ([args, &head, &next, &dispatch_result]{
+            if (Subcommands::name == next) { 
+                dispatch_result = Subcommands::execute(
+                    head,
+                    args.subspan(1)
+                );
+            } else {
+                return;
+            }
+        }(), ...);
+
+        if (!dispatch_result) {
+            usage(head, stderr);
+        }
+
+        return dispatch_result.value_or(
+            std::unexpected(
+                Error{
+                    Error::Type::InvalidSubcommand,
+                    std::format(
+                        "The requested subcommand ({}) is not registered",
+                        next
+                    )
+                }
+            )
+        );
+    }
+
+    auto help(std::string_view program_name) -> void {
+        std::println("{} v{}", name, version);
+        std::println("  {}\n", description);
+        usage(program_name, stdout);
+    }
+
+    auto usage(std::string_view program_name, std::FILE* destination) -> void {
+        std::println(destination, "Usage:");
+        std::println(destination, "  {} (-h|--help)", program_name);
+
+        (
+            (std::println(destination, "  {} {} <ARG>", program_name, Subcommands::name)),
+            ...
+        );
+    }
+};
+
+}
+
+#endif // ARGPARSE_H

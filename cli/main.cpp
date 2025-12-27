@@ -1,30 +1,10 @@
 #include <filesystem>
-#include <print>
 
-#include "logging.h"
+#include "argparse.h"
 #include "parsing.h"
 #include "serialization.h"
 
-using namespace std::literals;
-
-auto root_help() -> void {
-    std::println(stderr, "keyhole CLI v0.1.0\n");
-    std::println(stderr, "Provides introspection and instrumentation for JVM bytecode\n");
-    std::println(stderr, "USAGE");
-    std::println(stderr, "  $ keyhole inspect - Examines data in .class files");
-    std::println(stderr, "  $ keyhole test-class - Writes an example .class file\n");
-    std::println(stderr, "Flags:");
-    std::println(stderr, "  -h, --help print this message");
-}
-
-auto root_usage() -> void {
-    std::println(stderr, "Usage:");
-    std::println(stderr, "  kh-cli (-h|--help)");
-    std::println(stderr, "  kh-cli inspect <ARGS>");
-    std::println(stderr, "  kh-cli test-class <ARGS>");
-}
-
-constexpr auto jdk_version(const classfile::Version version) -> uint8_t {
+constexpr auto jdk_version(const classfile::Version version) noexcept -> uint8_t {
     if (version.major < 49) {
         // NOTE(garrett): Bundle 1.0-1.4 just because we're being lazy here.
         return 1;
@@ -35,18 +15,28 @@ constexpr auto jdk_version(const classfile::Version version) -> uint8_t {
     return version.major - 44;
 }
 
-auto inspect_class_file(const std::filesystem::path& target) -> void {
+auto inspect_class_file(std::string_view target)
+        -> std::expected<void, argparse::Error> {
     if (!std::filesystem::exists(target)) {
-        throw std::runtime_error(
-            std::format("Requested file ({}) does not exist", target.string())
+        return std::unexpected(
+            argparse::Error{
+                argparse::Error::Type::CommandExecutionFailure,
+                std::format("Requested file ({}) does not exist", target)
+            }
         );
     }
 
-    std::ifstream file_reader{target, std::ios::binary | std::ios::ate};
+    std::ifstream file_reader{
+        std::filesystem::path{target},
+        std::ios::binary | std::ios::ate
+    };
 
     if (!file_reader.is_open()) {
-        throw std::runtime_error(
-            std::format("Failed to open file ({})", target.string())
+        return std::unexpected(
+            argparse::Error{
+                argparse::Error::Type::CommandExecutionFailure,
+                std::format("Failed to open file ({})", target)
+            }
         );
     }
 
@@ -57,8 +47,11 @@ auto inspect_class_file(const std::filesystem::path& target) -> void {
     contents.resize(size);
 
     if (!file_reader.read(reinterpret_cast<char*>(contents.data()), size)) {
-        throw std::runtime_error(
-            std::format("Failed to read file ({}) contents", target.string())
+        return std::unexpected(
+            argparse::Error{
+                argparse::Error::Type::CommandExecutionFailure,
+                std::format("Failed to read file ({}) contents", target)
+            }
         );
     }
 
@@ -66,8 +59,11 @@ auto inspect_class_file(const std::filesystem::path& target) -> void {
     const auto class_file = parsing::parse_class_file(reader);
 
     if (!class_file) {
-        throw std::runtime_error(
-            std::format("Failed to parse file ({}) contents", target.string())
+        return std::unexpected(
+            argparse::Error{
+                argparse::Error::Type::CommandExecutionFailure,
+                std::format("Failed to parse file ({}) contents", target)
+            }
         );
     }
 
@@ -132,48 +128,47 @@ auto inspect_class_file(const std::filesystem::path& target) -> void {
             );
         }
     }
+
+    return {};
 }
 
-auto write_test_class_file(const std::filesystem::path& target) -> void {
+auto write_test_class_file(std::string_view target)
+        -> std::expected<void, argparse::Error> {
     const std::string class_name{"MyClass"};
     const std::string superclass_name{"java/lang/Object"};
     classfile::ClassFile klass(class_name, superclass_name);
 
-    std::ofstream stream{target};
+    std::ofstream stream{std::filesystem::path{target}};
 
     if (!stream) {
-        throw std::runtime_error("Failed to open requested file");
+        return std::unexpected(
+            argparse::Error{
+                argparse::Error::Type::CommandExecutionFailure,
+                std::format("Failed to open requested file ({})", target)
+            }
+        );
     }
 
     sinks::FileSink sink{stream};
     serialization::serialize(sink, klass);
+
+    return {};
 }
 
-auto main(int argc, char** argv) -> int {
-    if (argc != 3) {
-        root_usage();
+auto main(const int argc, const char** argv) -> int {
+    using InspectCommand = argparse::Command<"inspect", ::inspect_class_file>;
+    using WriteCommand = argparse::Command<"test-class", ::write_test_class_file>;
+
+    const auto result = argparse::CLI<InspectCommand, WriteCommand>{
+        .name = "KeyHole CLI",
+        .version = "0.1.0",
+        .description = "Provides instrumentation and introspection for JVM bytecode",
+    }.execute(argc, argv);
+
+    if (!result) {
+        std::println(stderr, "[ERROR] {}", result.error().message);
         return EXIT_FAILURE;
     }
-
-    if (argv[1] == "-h"sv || argv[1] == "--help"sv) {
-        root_help();
-        return EXIT_SUCCESS;
-    }
-
-    try {
-        if (argv[1] == "inspect"sv) {
-            inspect_class_file(argv[2]);
-        } else if (argv[1] == "test-class"sv) {
-            write_test_class_file(argv[2]);
-        } else {
-            root_usage();
-            return EXIT_FAILURE;
-        }
-    } catch (const std::runtime_error& e) {
-        logging::error(e.what());
-        return EXIT_FAILURE;
-    }
-
 
     return EXIT_SUCCESS;
 }
