@@ -21,6 +21,17 @@ struct Error {
     std::string message;
 };
 
+using CommandResult = std::expected<void, Error>;
+
+template <typename Fn>
+concept CommandImplementation = requires (Fn f) {
+    requires (std::invocable<Fn>);
+    { f() } -> std::same_as<CommandResult>;
+} || requires (Fn f, std::string_view sv) {
+    requires (std::invocable<Fn, std::string_view>);
+    { f(sv) } -> std::same_as<CommandResult>;
+};
+
 template <std::size_t S>
 struct NonTypeTemplateString {
     char buffer[S];
@@ -34,34 +45,49 @@ struct NonTypeTemplateString {
     }
 };
 
-template <NonTypeTemplateString Name, auto ExecuteFn>
-    requires std::invocable<decltype(ExecuteFn), std::string_view> &&
-        std::is_same_v<
-            std::expected<void, Error>,
-            std::invoke_result_t<decltype(ExecuteFn), std::string_view>
-        >
+template <NonTypeTemplateString Name, CommandImplementation auto ExecuteFn>
 struct Command {
     static constexpr std::string_view name = Name;
 
     static auto execute(std::string_view path, std::span<const char*> args)
-            -> std::expected<void, Error> {
-        if (args.size() != 2) {
-            usage(path);
+            -> CommandResult {
+        std::string_view error_message = ""sv;
 
-            return std::unexpected(
-                Error{
-                    Error::Type::MalformedArgumentList,
-                    "Commands must receive a single positional argument"
-                }
-            );
+        if (args.size() == 1) {
+            if constexpr (std::invocable<decltype(ExecuteFn)>) {
+               return std::invoke(ExecuteFn);
+            } else {
+                usage(path);
+                error_message = "Requested command only takes a single argument"sv;
+            }
+        } else if (args.size() == 2) {
+            if constexpr (std::invocable<decltype(ExecuteFn), std::string_view>) {
+                return std::invoke(ExecuteFn, args[1]);
+            } else {
+                usage(path);
+                error_message = "Requested command does not take any arguments"sv;
+            }
+        } else {
+            usage(path);
+            error_message = "Too many arguments provided to requested function"sv;
         }
 
-        return std::invoke(ExecuteFn, args[1]);
+        return std::unexpected(
+            Error{
+                Error::Type::MalformedArgumentList,
+                std::string{error_message}
+            }
+        );
     }
 
     static auto usage(std::string_view path) -> void {
         std::println(stderr, "Usage:");
-        std::println(stderr, " {} {} <ARGS>", path, name);
+
+        if constexpr(std::invocable<decltype(ExecuteFn)>) {
+            std::println(stderr, " {} {}", path, name);
+        } else {
+            std::println(stderr, " {} {} <ARGS>", path, name);
+        }
     }
 };
 
@@ -105,7 +131,7 @@ struct CLI {
             return {};
         }
 
-        std::optional<std::expected<void, Error>> dispatch_result = std::nullopt;
+        std::optional<CommandResult> dispatch_result = std::nullopt;
 
         ([args, &head, &next, &dispatch_result]{
             if (Subcommands::name == next) { 
@@ -146,7 +172,11 @@ struct CLI {
         std::println(destination, "  {} (-h|--help)", program_name);
 
         (
-            (std::println(destination, "  {} {} <ARG>", program_name, Subcommands::name)),
+            (std::println(
+                destination,
+                "  {} {} [<ARGS>]",
+                program_name,
+                Subcommands::name)),
             ...
         );
     }

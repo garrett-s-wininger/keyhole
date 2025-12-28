@@ -15,8 +15,63 @@ constexpr auto jdk_version(const classfile::Version version) noexcept -> uint8_t
     return version.major - 44;
 }
 
-auto inspect_class_file(std::string_view target)
-        -> std::expected<void, argparse::Error> {
+auto attachment_targets() -> argparse::CommandResult {
+    const auto tempdir = std::filesystem::temp_directory_path();
+    const auto directory_iterator = std::filesystem::directory_iterator{
+        tempdir,
+        std::filesystem::directory_options::follow_directory_symlink
+        | std::filesystem::directory_options::skip_permission_denied
+    };
+
+    // NOTE(garrett): Will need a different approach if we want to support
+    // Windows, perhaps backed by some form of platform library to hide away
+    // the differences.
+    const auto username = std::getenv("USER");
+    const auto jvm_perf_dir = std::filesystem::path{
+        std::format("hsperfdata_{}", username)
+    };
+
+    auto found = false;
+
+    for (const auto& entry : directory_iterator) {
+        if (entry.path().filename() == jvm_perf_dir) {
+            if (!entry.is_directory()) {
+                return std::unexpected(
+                    argparse::Error{
+                        argparse::Error::Type::CommandExecutionFailure,
+                        std::format(
+                            "User performance data location ({}) not a directory",
+                            entry.path().string()
+                        )
+                    }
+                );
+            }
+
+            found = true;
+
+            const auto subdir_iterator = std::filesystem::directory_iterator{
+                entry.path()
+            };
+
+            for (const auto& sub_entry : subdir_iterator) {
+                std::println("{}", sub_entry.path().filename().string());
+            }
+        }
+    }
+
+    if (!found) {
+        return std::unexpected(
+            argparse::Error{
+                argparse::Error::Type::CommandExecutionFailure,
+                "No processes found via user performance data fingerprinting"
+            }
+        );
+    }
+
+    return {};
+}
+
+auto inspect_class_file(std::string_view target) -> argparse::CommandResult {
     if (!std::filesystem::exists(target)) {
         return std::unexpected(
             argparse::Error{
@@ -132,8 +187,7 @@ auto inspect_class_file(std::string_view target)
     return {};
 }
 
-auto write_test_class_file(std::string_view target)
-        -> std::expected<void, argparse::Error> {
+auto write_test_class_file(std::string_view target) -> argparse::CommandResult {
     const std::string class_name{"MyClass"};
     const std::string superclass_name{"java/lang/Object"};
     classfile::ClassFile klass(class_name, superclass_name);
@@ -156,10 +210,18 @@ auto write_test_class_file(std::string_view target)
 }
 
 auto main(const int argc, const char** argv) -> int {
+    using AttachmentTargetsCommand = argparse::Command<
+        "attachment-targets", ::attachment_targets
+    >;
+
     using InspectCommand = argparse::Command<"inspect", ::inspect_class_file>;
     using WriteCommand = argparse::Command<"test-class", ::write_test_class_file>;
 
-    const auto result = argparse::CLI<InspectCommand, WriteCommand>{
+    const auto result = argparse::CLI<
+        AttachmentTargetsCommand,
+        InspectCommand,
+        WriteCommand
+    >{
         .name = "KeyHole CLI",
         .version = "0.1.0",
         .description = "Provides instrumentation and introspection for JVM bytecode",
