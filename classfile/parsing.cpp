@@ -1,4 +1,39 @@
+#include <stdexcept>
+#include <fstream>
+
 #include "parsing.h"
+
+auto parsing::load_class_from_file(const std::filesystem::path& path)
+        -> std::expected<parsing::LoadedClass, parsing::Error> {
+    auto file_reader = std::ifstream{path, std::ios::binary | std::ios::ate};
+
+    if (!file_reader) {
+        throw std::runtime_error(
+            std::format("Failed to access file ({})", path.string())
+        );
+    }
+
+    const auto size = file_reader.tellg();
+    file_reader.seekg(0, std::ios::beg);
+
+    auto contents = std::vector<std::byte>{};
+    contents.resize(size);
+
+    if (!file_reader.read(reinterpret_cast<char*>(contents.data()), size)) {
+        throw std::runtime_error(
+            std::format("Failed to read file ({}) contents", path.string())
+        );
+    }
+
+    auto reader = reader::Reader{contents};
+    const auto class_file = parsing::parse_class_file(reader);
+
+    if (!class_file) {
+        return std::unexpected(class_file.error());
+    }
+
+    return parsing::LoadedClass{std::move(contents), class_file.value()};
+}
 
 auto parsing::parse_attribute(reader::Reader& reader) noexcept
         -> std::expected<attribute::Attribute, parsing::Error> {

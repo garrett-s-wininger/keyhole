@@ -2,6 +2,7 @@
 #define PARSING_H
 
 #include <expected>
+#include <filesystem>
 
 #include "attribute.h"
 #include "classfile.h"
@@ -17,6 +18,14 @@ enum Error {
     NotImplemented,
     Truncated
 };
+
+struct LoadedClass {
+    std::vector<std::byte> raw;
+    classfile::ClassFile class_file;
+};
+
+auto load_class_from_file(const std::filesystem::path& path)
+        -> std::expected<LoadedClass, Error>;
 
 auto parse_attribute(reader::Reader&) noexcept
         -> std::expected<attribute::Attribute, Error>;
