@@ -3,6 +3,7 @@
 #include "argparse.h"
 #include "parsing.h"
 #include "serialization.h"
+#include "views.h"
 
 constexpr auto jdk_version(
         const kh::jvm::classfile::Version version) noexcept -> uint8_t {
@@ -88,13 +89,14 @@ auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult 
     }
 
     const auto& klass = result.value().class_file;
+    const auto class_view = kh::jvm::views::ClassView{klass};
 
     std::println("Class File Overview:");
 
     std::println(
         "  Name         - {} ({})",
-        klass.name(),
-        klass.superclass()
+        class_view.name(),
+        class_view.superclass()
     );
 
     std::println(

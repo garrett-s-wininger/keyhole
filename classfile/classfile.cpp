@@ -11,24 +11,4 @@ ClassFile::ClassFile() noexcept
     , methods(std::vector<kh::jvm::method::Method>{})
     , attributes(std::vector<kh::jvm::attribute::Attribute>{}) {}
 
-auto ClassFile::name() const -> std::string_view {
-    const auto& class_entry = constant_pool.resolve<constant_pool::ClassEntry>(
-        class_index
-    );
-
-    return constant_pool.resolve<kh::jvm::constant_pool::UTF8Entry>(
-        class_entry.name_index
-    ).text;
-}
-
-auto ClassFile::superclass() const -> std::string_view {
-    const auto& class_entry = constant_pool.resolve<kh::jvm::constant_pool::ClassEntry>(
-        superclass_index
-    );
-
-    return constant_pool.resolve<kh::jvm::constant_pool::UTF8Entry>(
-        class_entry.name_index
-    ).text;
-}
-
 } // namespace kh::jvm::classfile

@@ -7,7 +7,8 @@ add_library(
     constant_pool.cpp
     parsing.cpp
     reader.cpp
-    sinks.cpp)
+    sinks.cpp
+    views.cpp)
 
 target_compile_features(kh-classfile PRIVATE cxx_std_23)
 target_compile_options(kh-classfile PRIVATE -Werror -Wall -Wextra -pedantic)

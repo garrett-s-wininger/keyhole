@@ -38,11 +38,11 @@ struct ClassFile {
     Version version;
     uint16_t class_index;
     uint16_t superclass_index;
-    constant_pool::ConstantPool constant_pool;
+    kh::jvm::constant_pool::ConstantPool constant_pool;
     uint16_t access_flags;
     // TODO(garrett): Interface, field storage
-    std::vector<method::Method> methods;
-    std::vector<attribute::Attribute> attributes;
+    std::vector<kh::jvm::method::Method> methods;
+    std::vector<kh::jvm::attribute::Attribute> attributes;
 
     ClassFile() noexcept;
 
@@ -50,22 +50,19 @@ struct ClassFile {
     ClassFile(S1&& class_name, S2&& superclass_name)
             : ClassFile() {
         constant_pool.add(
-            constant_pool::UTF8Entry{class_name}
+            kh::jvm::constant_pool::UTF8Entry{class_name}
         );
 
-        constant_pool.add(constant_pool::ClassEntry{1});
+        constant_pool.add(kh::jvm::constant_pool::ClassEntry{1});
         class_index = 2;
 
         constant_pool.add(
-            constant_pool::UTF8Entry{superclass_name}
+            kh::jvm::constant_pool::UTF8Entry{superclass_name}
         );
 
-        constant_pool.add(constant_pool::ClassEntry{3});
+        constant_pool.add(kh::jvm::constant_pool::ClassEntry{3});
         superclass_index = 4;
     }
-
-    auto name() const -> std::string_view;
-    auto superclass() const -> std::string_view;
 };
 
 } // namespace kh::jvm::classfile
