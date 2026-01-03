@@ -4,7 +4,8 @@
 #include "parsing.h"
 #include "serialization.h"
 
-constexpr auto jdk_version(const classfile::Version version) noexcept -> uint8_t {
+constexpr auto jdk_version(
+        const kh::jvm::classfile::Version version) noexcept -> uint8_t {
     if (version.major < 49) {
         // NOTE(garrett): Bundle 1.0-1.4 just because we're being lazy here.
         return 1;
@@ -15,7 +16,7 @@ constexpr auto jdk_version(const classfile::Version version) noexcept -> uint8_t
     return version.major - 44;
 }
 
-auto attachment_targets() -> argparse::CommandResult {
+auto attachment_targets() -> kh::argparse::CommandResult {
     const auto tempdir = std::filesystem::temp_directory_path();
     const auto directory_iterator = std::filesystem::directory_iterator{
         tempdir,
@@ -37,8 +38,8 @@ auto attachment_targets() -> argparse::CommandResult {
         if (entry.path().filename() == jvm_perf_dir) {
             if (!entry.is_directory()) {
                 return std::unexpected(
-                    argparse::Error{
-                        argparse::Error::Type::CommandExecutionFailure,
+                    kh::argparse::Error{
+                        kh::argparse::Error::Type::CommandExecutionFailure,
                         std::format(
                             "User performance data location ({}) not a directory",
                             entry.path().string()
@@ -61,8 +62,8 @@ auto attachment_targets() -> argparse::CommandResult {
 
     if (!found) {
         return std::unexpected(
-            argparse::Error{
-                argparse::Error::Type::CommandExecutionFailure,
+            kh::argparse::Error{
+                kh::argparse::Error::Type::CommandExecutionFailure,
                 "No processes found via user performance data fingerprinting"
             }
         );
@@ -71,13 +72,13 @@ auto attachment_targets() -> argparse::CommandResult {
     return {};
 }
 
-auto inspect_class_file(std::string_view target) -> argparse::CommandResult {
-    const auto result = parsing::load_class_from_file(target);
+auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult {
+    const auto result = kh::jvm::parsing::load_class_from_file(target);
 
     if (!result) {
         return std::unexpected(
-            argparse::Error{
-                argparse::Error::Type::CommandExecutionFailure,
+            kh::argparse::Error{
+                kh::argparse::Error::Type::CommandExecutionFailure,
                 std::format(
                     "Failed to parse class from file ({})",
                     target
@@ -117,7 +118,7 @@ auto inspect_class_file(std::string_view target) -> argparse::CommandResult {
             std::println(
                 "  {:>2}#: [{}]",
                 i + 1,
-                constant_pool::name(entries[i])
+                kh::jvm::constant_pool::name(entries[i])
             );
         }
     }
@@ -128,7 +129,7 @@ auto inspect_class_file(std::string_view target) -> argparse::CommandResult {
         for (const auto& method : klass.methods) {
             std::println(
                 "  {}",
-                klass.constant_pool.resolve<constant_pool::UTF8Entry>(
+                klass.constant_pool.resolve<kh::jvm::constant_pool::UTF8Entry>(
                     method.name_index
                 ).text
             );
@@ -141,7 +142,7 @@ auto inspect_class_file(std::string_view target) -> argparse::CommandResult {
         for (const auto& attribute : klass.attributes) {
             std::println(
                 "  {}",
-                klass.constant_pool.resolve<constant_pool::UTF8Entry>(
+                klass.constant_pool.resolve<kh::jvm::constant_pool::UTF8Entry>(
                     attribute.name_index
                 ).text
             );
@@ -151,38 +152,38 @@ auto inspect_class_file(std::string_view target) -> argparse::CommandResult {
     return {};
 }
 
-auto write_test_class_file(std::string_view target) -> argparse::CommandResult {
+auto write_test_class_file(std::string_view target) -> kh::argparse::CommandResult {
     const std::string class_name{"MyClass"};
     const std::string superclass_name{"java/lang/Object"};
-    classfile::ClassFile klass(class_name, superclass_name);
+    kh::jvm::classfile::ClassFile klass(class_name, superclass_name);
 
     std::ofstream stream{std::filesystem::path{target}};
 
     if (!stream) {
         return std::unexpected(
-            argparse::Error{
-                argparse::Error::Type::CommandExecutionFailure,
+            kh::argparse::Error{
+                kh::argparse::Error::Type::CommandExecutionFailure,
                 std::format("Failed to open requested file ({})", target)
             }
         );
     }
 
-    sinks::FileSink sink{stream};
-    serialization::serialize(sink, klass);
+    kh::sinks::FileSink sink{stream};
+    kh::jvm::serialization::serialize(sink, klass);
 
     return {};
 }
 
 auto main(const int argc, const char** argv) -> int {
-    using AttachmentTargetsCommand = argparse::Command<
+    using AttachmentTargetsCommand = kh::argparse::Command<
         "attachment-targets", ::attachment_targets
     >;
 
-    using InspectCommand = argparse::Command<"inspect", ::inspect_class_file>;
-    using WriteCommand = argparse::Command<"write-class", ::write_test_class_file>;
+    using InspectCommand = kh::argparse::Command<"inspect", ::inspect_class_file>;
+    using WriteCommand = kh::argparse::Command<"write-class", ::write_test_class_file>;
 
     try {
-        const auto result = argparse::CLI<
+        const auto result = kh::argparse::CLI<
             AttachmentTargetsCommand,
             InspectCommand,
             WriteCommand

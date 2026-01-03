@@ -1,6 +1,6 @@
 #include "reader.h"
 
-namespace reader {
+namespace kh::reader {
 
 Reader::Reader(std::span<const std::byte> bytes) noexcept : remaining_(bytes) {}
 
@@ -16,4 +16,4 @@ auto Reader::read_bytes(std::uint32_t count)
     return result;
 }
 
-} // namespace reader
+} // namespace kh::reader

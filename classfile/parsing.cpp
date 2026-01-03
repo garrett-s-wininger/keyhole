@@ -3,7 +3,7 @@
 
 #include "parsing.h"
 
-namespace parsing {
+namespace kh::jvm::parsing {
 
 auto load_class_from_file(const std::filesystem::path& path)
         -> std::expected<LoadedClass, Error> {
@@ -27,7 +27,7 @@ auto load_class_from_file(const std::filesystem::path& path)
         );
     }
 
-    auto reader = reader::Reader{contents};
+    auto reader = kh::reader::Reader{contents};
     const auto class_file = parse_class_file(reader);
 
     if (!class_file) {
@@ -56,13 +56,13 @@ auto parse_attribute(reader::Reader& reader) noexcept
         return std::unexpected(Error::Truncated);
     }
 
-    return attribute::Attribute{
+    return kh::jvm::attribute::Attribute{
         name_index,
         body.value()
     };
 }
 
-auto parse_method(reader::Reader& reader)
+auto parse_method(kh::reader::Reader& reader)
         -> std::expected<method::Method, Error> {
     const auto method_header = reader.read_bytes(sizeof(std::uint64_t));
 
@@ -77,7 +77,7 @@ auto parse_method(reader::Reader& reader)
     const auto descriptor_index = method_reader.read_unchecked<std::uint16_t>();
     const auto attribute_count = method_reader.read_unchecked<std::uint16_t>();
 
-    std::vector<attribute::Attribute> attributes{};
+    std::vector<kh::jvm::attribute::Attribute> attributes{};
     attributes.reserve(attribute_count);
 
     for (auto i = 0uz; i < attribute_count; ++i) {
@@ -90,7 +90,7 @@ auto parse_method(reader::Reader& reader)
         attributes.push_back(result.value());
     }
 
-    return method::Method{
+    return kh::jvm::method::Method{
         access_flags,
         name_index,
         descriptor_index,
@@ -98,54 +98,54 @@ auto parse_method(reader::Reader& reader)
     };
 }
 
-auto parse_class_info_entry(reader::Reader& reader) noexcept
-        -> std::expected<constant_pool::ClassEntry, Error> {
+auto parse_class_info_entry(kh::reader::Reader& reader) noexcept
+        -> std::expected<kh::jvm::constant_pool::ClassEntry, Error> {
     const auto index = reader.read<std::uint16_t>();
 
     if (!index) {
         return std::unexpected(Error::Truncated);
     }
 
-    return constant_pool::ClassEntry{index.value()};
+    return kh::jvm::constant_pool::ClassEntry{index.value()};
 }
 
 // TODO(garrett): Perhaps collapse these (any maybe others) to a generic
 // x-bytes parse
-auto parse_method_reference_entry(reader::Reader& reader) noexcept
-        -> std::expected<constant_pool::MethodReferenceEntry, Error> {
+auto parse_method_reference_entry(kh::reader::Reader& reader) noexcept
+        -> std::expected<kh::jvm::constant_pool::MethodReferenceEntry, Error> {
     const auto entry_contents = reader.read_bytes(sizeof(std::uint32_t));
 
     if (!entry_contents) {
         return std::unexpected(Error::Truncated);
     }
 
-    reader::Reader entry_reader{entry_contents.value()};
+    kh::reader::Reader entry_reader{entry_contents.value()};
 
-    return constant_pool::MethodReferenceEntry{
+    return kh::jvm::constant_pool::MethodReferenceEntry{
         entry_reader.read_unchecked<std::uint16_t>(),
         entry_reader.read_unchecked<std::uint16_t>()
     };
 }
 
-auto parse_name_and_type_entry(reader::Reader& reader) noexcept
-        -> std::expected<constant_pool::NameAndTypeEntry, Error> {
+auto parse_name_and_type_entry(kh::reader::Reader& reader) noexcept
+        -> std::expected<kh::jvm::constant_pool::NameAndTypeEntry, Error> {
     const auto entry_contents = reader.read_bytes(sizeof(std::uint32_t));
 
     if (!entry_contents) {
         return std::unexpected(Error::Truncated);
     }
 
-    reader::Reader entry_reader{entry_contents.value()};
+    kh::reader::Reader entry_reader{entry_contents.value()};
 
-    return constant_pool::NameAndTypeEntry{
+    return kh::jvm::constant_pool::NameAndTypeEntry{
         entry_reader.read_unchecked<std::uint16_t>(),
         entry_reader.read_unchecked<std::uint16_t>()
     };
 }
 
-auto parse_utf8_entry(reader::Reader& reader) noexcept
-        -> std::expected<constant_pool::UTF8Entry, Error> {
-    auto entry = constant_pool::UTF8Entry{};
+auto parse_utf8_entry(kh::reader::Reader& reader) noexcept
+        -> std::expected<kh::jvm::constant_pool::UTF8Entry, Error> {
+    auto entry = kh::jvm::constant_pool::UTF8Entry{};
     const auto size = reader.read<std::uint16_t>();
 
     if (!size) {
@@ -166,25 +166,25 @@ auto parse_utf8_entry(reader::Reader& reader) noexcept
     return entry;
 }
 
-auto parse_constant_pool_entry(reader::Reader& reader) noexcept
-        -> std::expected<constant_pool::Entry, Error> {
+auto parse_constant_pool_entry(kh::reader::Reader& reader) noexcept
+        -> std::expected<kh::jvm::constant_pool::Entry, Error> {
     const auto tag = reader.read<std::uint8_t>();
 
     if (!tag) {
         return std::unexpected(Error::Truncated);
     }
 
-    switch (static_cast<constant_pool::Tag>(tag.value())) {
-        case constant_pool::Tag::Class: {
+    switch (static_cast<kh::jvm::constant_pool::Tag>(tag.value())) {
+        case kh::jvm::constant_pool::Tag::Class: {
             return parse_class_info_entry(reader);
         }
-        case constant_pool::Tag::MethodReference: {
+        case kh::jvm::constant_pool::Tag::MethodReference: {
             return parse_method_reference_entry(reader);
         }
-        case constant_pool::Tag::NameAndType: {
+        case kh::jvm::constant_pool::Tag::NameAndType: {
             return parse_name_and_type_entry(reader);
         }
-        case constant_pool::Tag::UTF8: {
+        case kh::jvm::constant_pool::Tag::UTF8: {
             return parse_utf8_entry(reader);
         }
         default:
@@ -192,9 +192,9 @@ auto parse_constant_pool_entry(reader::Reader& reader) noexcept
     }
 }
 
-auto parse_constant_pool(reader::Reader& reader, std::uint16_t count)
-        -> std::expected<constant_pool::ConstantPool, Error> {
-    constant_pool::ConstantPool pool{};
+auto parse_constant_pool(kh::reader::Reader& reader, std::uint16_t count)
+        -> std::expected<kh::jvm::constant_pool::ConstantPool, Error> {
+    kh::jvm::constant_pool::ConstantPool pool{};
 
     for (auto i = 0uz; i < count; ++i) {
         const auto entry = parse_constant_pool_entry(reader);
@@ -209,15 +209,15 @@ auto parse_constant_pool(reader::Reader& reader, std::uint16_t count)
     return pool;
 }
 
-auto parse_class_file(reader::Reader& reader)
-        -> std::expected<classfile::ClassFile, Error> {
+auto parse_class_file(kh::reader::Reader& reader)
+        -> std::expected<kh::jvm::classfile::ClassFile, Error> {
     const auto header = reader.read_bytes(sizeof(std::uint64_t) + sizeof(std::uint16_t));
 
     if (!header) {
         return std::unexpected(Truncated);
     }
 
-    auto header_reader = reader::Reader{header.value()};
+    auto header_reader = kh::reader::Reader{header.value()};
 
     if (header_reader.read_unchecked<std::uint32_t>() != 0xCAFEBABE) {
         return std::unexpected(Error::InvalidMagic);
@@ -226,8 +226,8 @@ auto parse_class_file(reader::Reader& reader)
     const auto minor = header_reader.read_unchecked<std::uint16_t>();
     const auto major = header_reader.read_unchecked<std::uint16_t>();
 
-    auto result = classfile::ClassFile{};
-    result.version = classfile::Version{major, minor};
+    auto result = kh::jvm::classfile::ClassFile{};
+    result.version = kh::jvm::classfile::Version{major, minor};
 
     const auto pool = parse_constant_pool(
         reader,
@@ -247,7 +247,7 @@ auto parse_class_file(reader::Reader& reader)
         return std::unexpected(Error::Truncated);
     }
 
-    auto metadata_reader = reader::Reader{access_and_class_metadata.value()};
+    auto metadata_reader = kh::reader::Reader{access_and_class_metadata.value()};
     result.access_flags = metadata_reader.read_unchecked<std::uint16_t>();
     result.class_index = metadata_reader.read_unchecked<std::uint16_t>();
     result.superclass_index = metadata_reader.read_unchecked<std::uint16_t>();
@@ -293,7 +293,7 @@ auto parse_class_file(reader::Reader& reader)
         return std::unexpected(Error::Truncated);
     }
 
-    result.attributes = std::vector<attribute::Attribute>{};
+    result.attributes = std::vector<kh::jvm::attribute::Attribute>{};
 
     for (auto i = 0uz; i < attributes_count.value(); ++i) {
         const auto attribute = parse_attribute(reader);
@@ -308,5 +308,5 @@ auto parse_class_file(reader::Reader& reader)
     return result;
 }
 
-} // namespace parsing
+} // namespace kh::jvm::parsing
 

@@ -1,6 +1,6 @@
 #include "constant_pool.h"
 
-namespace constant_pool {
+namespace kh::jvm::constant_pool {
 
 ConstantPool::ConstantPool()
         : entries_(std::deque<Entry>{})
@@ -46,4 +46,4 @@ auto ConstantPool::try_add_utf8_entry(std::string_view text) -> std::size_t {
     return add(UTF8Entry{text});
 }
 
-} // namespace constant_pool
+} // namespace kh::jvm::constant_pool

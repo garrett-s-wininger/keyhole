@@ -7,9 +7,11 @@
 #include "method.h"
 #include "sinks.h"
 
-namespace serialization {
+namespace kh::jvm::serialization {
 
-auto serialize(sinks::Sink auto& sink, const attribute::Attribute& attribute) -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        const kh::jvm::attribute::Attribute& attribute) -> void {
     sink.write(attribute.name_index);
     sink.write(static_cast<uint32_t>(attribute.data.size()));
 
@@ -18,12 +20,16 @@ auto serialize(sinks::Sink auto& sink, const attribute::Attribute& attribute) ->
     }
 }
 
-auto serialize(sinks::Sink auto& sink, const constant_pool::ClassEntry entry) -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        const kh::jvm::constant_pool::ClassEntry entry) -> void {
     sink.write(static_cast<uint8_t>(constant_pool::tag(entry)));
     sink.write(entry.name_index);
 }
 
-auto serialize(sinks::Sink auto& sink, const method::Method& method) -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        const kh::jvm::method::Method& method) -> void {
     sink.write(method.access_flags);
     sink.write(method.name_index);
     sink.write(method.descriptor_index);
@@ -33,20 +39,25 @@ auto serialize(sinks::Sink auto& sink, const method::Method& method) -> void {
     }
 }
 
-auto serialize(sinks::Sink auto& sink, const constant_pool::MethodReferenceEntry entry)
-        -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        const kh::jvm::constant_pool::MethodReferenceEntry entry) -> void {
     sink.write(static_cast<uint8_t>(constant_pool::tag(entry)));
     sink.write(entry.class_index);
     sink.write(entry.name_and_type_index);
 }
 
-auto serialize(sinks::Sink auto& sink, constant_pool::NameAndTypeEntry entry) -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        kh::jvm::constant_pool::NameAndTypeEntry entry) -> void {
     sink.write(static_cast<uint8_t>(constant_pool::tag(entry)));
     sink.write(entry.name_index);
     sink.write(entry.descriptor_index);
 }
 
-auto serialize(sinks::Sink auto& sink, constant_pool::UTF8Entry entry) -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        kh::jvm::constant_pool::UTF8Entry entry) -> void {
     sink.write(static_cast<uint8_t>(constant_pool::tag(entry)));
     sink.write(static_cast<uint16_t>(entry.text.size()));
 
@@ -55,8 +66,9 @@ auto serialize(sinks::Sink auto& sink, constant_pool::UTF8Entry entry) -> void {
     }
 }
 
-auto serialize(sinks::Sink auto& sink, const constant_pool::ConstantPool& pool)
-        -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        const kh::jvm::constant_pool::ConstantPool& pool) -> void {
     for (const auto& entry : pool.entries()) {
         std::visit([&sink](const auto& e){
             serialize(sink, e);
@@ -64,13 +76,15 @@ auto serialize(sinks::Sink auto& sink, const constant_pool::ConstantPool& pool)
     }
 }
 
-auto serialize(sinks::Sink auto& sink, const classfile::ClassFile& klass) -> void {
+auto serialize(
+        kh::sinks::Sink auto& sink,
+        const kh::jvm::classfile::ClassFile& klass) -> void {
     sink.write(static_cast<uint32_t>(0xCAFEBABE));
     sink.write(static_cast<uint16_t>(klass.version.minor));
     sink.write(static_cast<uint16_t>(klass.version.major));
     sink.write(static_cast<uint16_t>(klass.constant_pool.entries().size() + 1));
 
-    serialization::serialize(sink, klass.constant_pool);
+    serialize(sink, klass.constant_pool);
 
     sink.write(static_cast<uint16_t>(klass.access_flags));
     sink.write(static_cast<uint16_t>(klass.class_index));
@@ -89,6 +103,6 @@ auto serialize(sinks::Sink auto& sink, const classfile::ClassFile& klass) -> voi
     // TODO(garrett): Write attribute entries
 }
 
-} // namespace serialization
+} // namespace kh::jvm::serialization
 
 #endif // SERIALIZATION_H

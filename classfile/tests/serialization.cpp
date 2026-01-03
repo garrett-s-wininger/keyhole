@@ -3,7 +3,7 @@
 #include "serialization.h"
 #include "tests/helpers.h"
 
-namespace serialization {
+namespace kh::jvm::serialization {
 
 TEST(Serialization, SerializesAttribute) {
     constexpr std::array<const std::byte, 3> data{
@@ -15,7 +15,7 @@ TEST(Serialization, SerializesAttribute) {
         data
     };
 
-    sinks::VectorSink sink{};
+    kh::sinks::VectorSink sink{};
     serialize(sink, attribute);
 
     constexpr std::array<std::byte, 9> expected{
@@ -44,7 +44,7 @@ TEST(Serialization, SerializesMethod) {
         }
     };
 
-    sinks::VectorSink sink{};
+    kh::sinks::VectorSink sink{};
     serialize(sink, method);
 
     constexpr auto expected = std::to_array({
@@ -65,7 +65,7 @@ TEST(Serialization, SerializesMethod) {
 
 TEST(Serialization, SerializesClassEntries) {
     constexpr constant_pool::ClassEntry entry{16};
-    sinks::VectorSink sink{};
+    kh::sinks::VectorSink sink{};
 
     serialize(sink, entry);
 
@@ -85,8 +85,7 @@ TEST(Serialization, SerializesConstantPool) {
         constant_pool::UTF8Entry{text}
     };
 
-    sinks::VectorSink sink{};
-
+    kh::sinks::VectorSink sink{};
     serialize(sink, pool);
 
     constexpr auto expected = std::array<const std::byte, 7>{
@@ -105,7 +104,7 @@ TEST(Serialization, SerializesConstantPool) {
 
 TEST(Serialization, SerializesMethodReferenceEntries) {
     constexpr constant_pool::MethodReferenceEntry entry{1, 2};
-    sinks::VectorSink sink{};
+    kh::sinks::VectorSink sink{};
 
     serialize(sink, entry);
 
@@ -124,7 +123,7 @@ TEST(Serialization, SerializesMethodReferenceEntries) {
 
 TEST(Serialization, SerializesNameAndTypeEntries) {
     constexpr constant_pool::NameAndTypeEntry entry{2, 4};
-    sinks::VectorSink sink{};
+    kh::sinks::VectorSink sink{};
 
     serialize(sink, entry);
 
@@ -143,7 +142,7 @@ TEST(Serialization, SerializesNameAndTypeEntries) {
 
 TEST(Serialization, SerializesUTF8Entries) {
     const constant_pool::UTF8Entry entry{"MyClass"};
-    sinks::VectorSink sink{};
+    kh::sinks::VectorSink sink{};
 
     serialize(sink, entry);
 
@@ -163,7 +162,7 @@ TEST(Serialization, SerializesClassFile) {
     const std::string superclass_name{"java/lang/Object"};
     const classfile::ClassFile klass(class_name, superclass_name);
 
-    sinks::VectorSink sink{};
+    kh::sinks::VectorSink sink{};
     serialize(sink, klass);
 
     constexpr auto expected = std::to_array<const std::byte>({
@@ -212,4 +211,4 @@ TEST(Serialization, SerializesClassFile) {
     EXPECT_THAT(expected, EqualsBinary(actual));
 }
 
-} // namespace serialization
+} // namespace kh::jvm::serialization

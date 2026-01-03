@@ -11,7 +11,7 @@
 #include <variant>
 #include <vector>
 
-namespace constant_pool {
+namespace kh::jvm::constant_pool {
 
 enum class Tag : uint8_t {
     UTF8 = 1,
@@ -141,6 +141,6 @@ constexpr auto name(const Entry entry) -> std::string {
     }, entry);
 }
 
-} // namespace constant_pool
+} // namespace kh::jvm::constant_pool
 
 #endif // CONSTANT_POOL_H

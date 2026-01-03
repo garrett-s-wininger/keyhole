@@ -8,7 +8,7 @@
 
 using namespace std::literals;
 
-namespace argparse {
+namespace kh::argparse {
 
 struct Error {
     enum Type {
@@ -182,6 +182,6 @@ struct CLI {
     }
 };
 
-}
+} // namespace kh::argparse
 
 #endif // ARGPARSE_H

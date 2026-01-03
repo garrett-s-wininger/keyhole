@@ -4,7 +4,7 @@
 
 using namespace std::literals;
 
-namespace parsing {
+namespace kh::jvm::parsing {
 
 TEST(Parsing, ParsesAttribute) {
     constexpr auto input = std::array<const std::byte, 7> {
@@ -16,7 +16,7 @@ TEST(Parsing, ParsesAttribute) {
         std::byte{'A'}
     };
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_attribute(reader);
 
     ASSERT_TRUE(result);
@@ -33,7 +33,7 @@ TEST(Parsing, DetectsInvalidConstantPoolTag) {
         std::byte{0xFF}
     };
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_FALSE(result);
@@ -52,7 +52,7 @@ TEST(Parsing, ParsesClassEntry) {
         std::byte{0x00}, std::byte{0x01}
     };
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
@@ -75,7 +75,7 @@ TEST(Parsing, ParsesMethodReferenceEntry) {
     };
 
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
@@ -98,7 +98,7 @@ TEST(Parsing, ParsesNameAndTypeEntry) {
         std::byte{0x00}, std::byte{0x04}
     };
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
@@ -122,7 +122,7 @@ TEST(Parsing, ParsesUTF8Entry) {
         std::byte{'s'}, std::byte{'s'}
     };
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
@@ -147,7 +147,7 @@ TEST(Parsing, ParsesConstantPool) {
         std::byte{0x00}, std::byte{0x01}
     };
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto pool_parse_result = parse_constant_pool(reader, 2);
 
     ASSERT_TRUE(pool_parse_result);
@@ -172,8 +172,7 @@ TEST(Parsing, ParsesMethod) {
         std::byte{'Z'}
     };
 
-    reader::Reader reader{input};
-
+    kh::reader::Reader reader{input};
     const auto result = parse_method(reader);
 
     ASSERT_TRUE(result);
@@ -198,7 +197,7 @@ TEST(Parsing, DetectsInvalidMagic) {
         std::byte{0x00}, std::byte{0x00}
     });
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_class_file(reader);
 
     ASSERT_FALSE(result);
@@ -208,7 +207,7 @@ TEST(Parsing, DetectsInvalidMagic) {
 TEST(Parsing, DetectsTruncation) {
     const auto input = std::array<const std::byte, 0>{};
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_class_file(reader);
 
     ASSERT_FALSE(result);
@@ -285,7 +284,7 @@ TEST(Parsing, ParsesClassFile) {
         std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}
     });
 
-    reader::Reader reader{input};
+    kh::reader::Reader reader{input};
     const auto result = parse_class_file(reader);
 
     ASSERT_TRUE(result);
@@ -314,4 +313,4 @@ TEST(Parsing, ParsesClassFile) {
     ASSERT_EQ(1u, klass.attributes.size());
 }
 
-} // namespace parsing
+} // namespace kh::jvm::parsing

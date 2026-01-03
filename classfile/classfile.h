@@ -10,7 +10,7 @@
 #include "constant_pool.h"
 #include "method.h"
 
-namespace classfile {
+namespace kh::jvm::classfile {
 
 struct Version {
     uint16_t major;
@@ -68,6 +68,6 @@ struct ClassFile {
     auto superclass() const -> std::string_view;
 };
 
-} // namespace classfile
+} // namespace kh::jvm::classfile
 
 #endif // CLASSFILE_H

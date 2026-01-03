@@ -5,7 +5,7 @@
 
 using namespace std::literals;
 
-namespace constant_pool {
+namespace kh::jvm::constant_pool {
 
 TEST(ConstantPool, GeneratesCorrectTagValues) {
     constexpr ClassEntry klass{};
@@ -67,4 +67,4 @@ TEST(ConstantPool, AddingNewUTF8EntryCachesAppropriately) {
     ASSERT_EQ(2uz, entry_idx);
 }
 
-} // namespace constant_pool
+} // namespace kh::jvm::constant_pool

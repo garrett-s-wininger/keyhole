@@ -1,6 +1,6 @@
 #include "sinks.h"
 
-namespace sinks {
+namespace kh::sinks {
 
 FileSink::FileSink(std::ofstream& target) : target_(target) {}
 
@@ -12,4 +12,4 @@ auto VectorSink::view() const noexcept -> std::span<const std::byte> {
     return buffer_;
 }
 
-} // namespace sinks
+} // namespace kh::sinks

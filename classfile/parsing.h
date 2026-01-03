@@ -10,7 +10,7 @@
 #include "method.h"
 #include "reader.h"
 
-namespace parsing {
+namespace kh::jvm::parsing {
 
 enum Error {
     InvalidConstantPoolTag,
@@ -21,26 +21,27 @@ enum Error {
 
 struct LoadedClass {
     std::vector<std::byte> raw;
-    classfile::ClassFile class_file;
+    kh::jvm::classfile::ClassFile class_file;
 };
 
 auto load_class_from_file(const std::filesystem::path& path)
         -> std::expected<LoadedClass, Error>;
 
-auto parse_attribute(reader::Reader&) noexcept
+auto parse_attribute(kh::reader::Reader&) noexcept
         -> std::expected<attribute::Attribute, Error>;
 
-auto parse_class_file(reader::Reader&)
+auto parse_class_file(kh::reader::Reader&)
         -> std::expected<classfile::ClassFile, Error>;
 
-auto parse_constant_pool(reader::Reader&, uint16_t count)
+auto parse_constant_pool(kh::reader::Reader&, uint16_t count)
         -> std::expected<constant_pool::ConstantPool, Error>;
 
-auto parse_constant_pool_entry(reader::Reader&) noexcept
+auto parse_constant_pool_entry(kh::reader::Reader&) noexcept
         -> std::expected<constant_pool::Entry, Error>;
 
-auto parse_method(reader::Reader&) -> std::expected<method::Method, Error>;
+auto parse_method(kh::reader::Reader&)
+        -> std::expected<kh::jvm::method::Method, Error>;
 
-} // namespace parsing
+} // namespace kh::jvm::parsing
 
 #endif // PARSING_H

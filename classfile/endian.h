@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C++" {
 
-namespace endian {
+namespace kh::endian {
 
 template <typename T>
 concept MultiByteIntegral =
@@ -30,7 +30,7 @@ auto big(V value) {
     }
 }
 
-}
+} // namespace kh::endian
 
 }
 #endif

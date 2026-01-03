@@ -4,13 +4,13 @@
 #include <cstdint>
 #include <span>
 
-namespace attribute {
+namespace kh::jvm::attribute {
 
 struct Attribute {
     uint16_t name_index;
     std::span<const std::byte> data;
 };
 
-} // namespace attribute
+} // namespace kh::jvm::attribute
 
 #endif // ATTRIBUTE_H

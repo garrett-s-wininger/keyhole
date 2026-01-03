@@ -7,7 +7,7 @@
 
 #include "endian.h"
 
-namespace sinks {
+namespace kh::sinks {
 
 template <typename S>
 concept Sink = requires(S& sink, uint8_t u8, uint16_t u16, uint32_t u32) {
@@ -22,7 +22,7 @@ private:
 public:
     FileSink(std::ofstream&);
 
-    template <endian::MultiByteIntegral V>
+    template <kh::endian::MultiByteIntegral V>
     auto write(V value) -> void {
         auto bytes = std::bit_cast<std::array<std::byte, sizeof(V)>>(
             endian::big(value)
@@ -42,7 +42,7 @@ public:
     template <endian::MultiByteIntegral V>
     auto write(V value) -> void {
         auto bytes = std::bit_cast<std::array<std::byte, sizeof(V)>>(
-            endian::big(value)
+            kh::endian::big(value)
         );
 
         buffer_.insert(buffer_.end(), bytes.begin(), bytes.end());
@@ -51,6 +51,6 @@ public:
     auto view() const noexcept -> std::span<const std::byte>;
 };
 
-} // namespace sinks
+} // namespace kh::sinks
 
 #endif // SINKS_H

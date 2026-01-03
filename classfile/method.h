@@ -5,7 +5,7 @@
 
 #include "attribute.h"
 
-namespace method {
+namespace kh::jvm::method {
 
 enum class AccessFlags : uint16_t {
     ACC_PUBLIC = 0x0001,
@@ -26,9 +26,9 @@ struct Method {
     uint16_t access_flags;
     uint16_t name_index;
     uint16_t descriptor_index;
-    std::vector<attribute::Attribute> attributes;
+    std::vector<kh::jvm::attribute::Attribute> attributes;
 };
 
-}
+} // namespace kh::jvm::method
 
 #endif // METHOD_H
