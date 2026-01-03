@@ -89,6 +89,6 @@ auto serialize(sinks::Sink auto& sink, const classfile::ClassFile& klass) -> voi
     // TODO(garrett): Write attribute entries
 }
 
-}
+} // namespace serialization
 
 #endif // SERIALIZATION_H

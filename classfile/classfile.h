@@ -68,6 +68,6 @@ struct ClassFile {
     auto superclass() const -> std::string_view;
 };
 
-}
+} // namespace classfile
 
 #endif // CLASSFILE_H

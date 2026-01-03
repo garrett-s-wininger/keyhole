@@ -11,6 +11,6 @@ struct Attribute {
     std::span<const std::byte> data;
 };
 
-}
+} // namespace attribute
 
 #endif // ATTRIBUTE_H

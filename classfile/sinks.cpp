@@ -1,14 +1,15 @@
 #include "sinks.h"
 
-sinks::FileSink::FileSink(std::ofstream& target) : target_(target) {}
+namespace sinks {
 
-sinks::VectorSink::VectorSink() : buffer_(std::vector<std::byte>()) {}
+FileSink::FileSink(std::ofstream& target) : target_(target) {}
 
-sinks::VectorSink::VectorSink(std::vector<std::byte>& buffer) noexcept
-    : buffer_(buffer) {}
+VectorSink::VectorSink() : buffer_(std::vector<std::byte>()) {}
 
-auto sinks::VectorSink::view() const noexcept -> std::span<const std::byte> {
+VectorSink::VectorSink(std::vector<std::byte>& buffer) noexcept : buffer_(buffer) {}
+
+auto VectorSink::view() const noexcept -> std::span<const std::byte> {
     return buffer_;
 }
 
-
+} // namespace sinks

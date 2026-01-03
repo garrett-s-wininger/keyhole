@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -47,16 +48,18 @@ using Entry = std::variant<
 class ConstantPool {
 private:
     std::deque<Entry> entries_;
-    std::vector<std::optional<size_t>> resolution_table_;
+    std::vector<std::optional<std::size_t>> resolution_table_;
+    std::unordered_map<std::string_view, std::size_t> text_entries_;
 public:
     ConstantPool();
     ConstantPool(std::initializer_list<Entry>);
 
-    auto add(const Entry entry) -> void;
+    auto add(const Entry entry) -> std::size_t;
     auto entries() const -> const std::deque<Entry>&;
+    auto try_add_utf8_entry(std::string_view) -> std::size_t;
 
     template <typename T>
-    auto resolve(uint16_t index) const -> const T& {
+    auto resolve(std::uint16_t index) const -> const T& {
         if (index >= resolution_table_.size()) {
             throw std::out_of_range(
                 std::format("Invalid constant pool access at index {}", index)
@@ -138,6 +141,6 @@ constexpr auto name(const Entry entry) -> std::string {
     }, entry);
 }
 
-}
+} // namespace constant_pool
 
 #endif // CONSTANT_POOL_H

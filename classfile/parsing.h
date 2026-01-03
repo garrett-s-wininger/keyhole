@@ -41,6 +41,6 @@ auto parse_constant_pool_entry(reader::Reader&) noexcept
 
 auto parse_method(reader::Reader&) -> std::expected<method::Method, Error>;
 
-}
+} // namespace parsing
 
 #endif // PARSING_H

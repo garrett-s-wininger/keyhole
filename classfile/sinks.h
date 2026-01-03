@@ -51,6 +51,6 @@ public:
     auto view() const noexcept -> std::span<const std::byte>;
 };
 
-}
+} // namespace sinks
 
 #endif // SINKS_H

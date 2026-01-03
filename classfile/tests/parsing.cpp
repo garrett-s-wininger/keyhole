@@ -4,6 +4,8 @@
 
 using namespace std::literals;
 
+namespace parsing {
+
 TEST(Parsing, ParsesAttribute) {
     constexpr auto input = std::array<const std::byte, 7> {
         // Name index
@@ -15,7 +17,7 @@ TEST(Parsing, ParsesAttribute) {
     };
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_attribute(reader);
+    const auto result = parse_attribute(reader);
 
     ASSERT_TRUE(result);
 
@@ -32,12 +34,12 @@ TEST(Parsing, DetectsInvalidConstantPoolTag) {
     };
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_constant_pool_entry(reader);
+    const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_FALSE(result);
 
     ASSERT_EQ(
-        parsing::Error::InvalidConstantPoolTag,
+        Error::InvalidConstantPoolTag,
         result.error()
     );
 }
@@ -51,7 +53,7 @@ TEST(Parsing, ParsesClassEntry) {
     };
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_constant_pool_entry(reader);
+    const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
     ASSERT_TRUE(
@@ -74,7 +76,7 @@ TEST(Parsing, ParsesMethodReferenceEntry) {
 
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_constant_pool_entry(reader);
+    const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
     ASSERT_TRUE(
@@ -97,7 +99,7 @@ TEST(Parsing, ParsesNameAndTypeEntry) {
     };
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_constant_pool_entry(reader);
+    const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
     ASSERT_TRUE(
@@ -121,7 +123,7 @@ TEST(Parsing, ParsesUTF8Entry) {
     };
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_constant_pool_entry(reader);
+    const auto result = parse_constant_pool_entry(reader);
 
     ASSERT_TRUE(result);
     ASSERT_TRUE(
@@ -146,7 +148,7 @@ TEST(Parsing, ParsesConstantPool) {
     };
 
     reader::Reader reader{input};
-    const auto pool_parse_result = parsing::parse_constant_pool(reader, 2);
+    const auto pool_parse_result = parse_constant_pool(reader, 2);
 
     ASSERT_TRUE(pool_parse_result);
     ASSERT_EQ(2uz, pool_parse_result.value().entries().size());
@@ -172,7 +174,7 @@ TEST(Parsing, ParsesMethod) {
 
     reader::Reader reader{input};
 
-    const auto result = parsing::parse_method(reader);
+    const auto result = parse_method(reader);
 
     ASSERT_TRUE(result);
     const auto method = result.value();
@@ -197,20 +199,20 @@ TEST(Parsing, DetectsInvalidMagic) {
     });
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_class_file(reader);
+    const auto result = parse_class_file(reader);
 
     ASSERT_FALSE(result);
-    EXPECT_EQ(parsing::Error::InvalidMagic, result.error());
+    EXPECT_EQ(Error::InvalidMagic, result.error());
 }
 
 TEST(Parsing, DetectsTruncation) {
     const auto input = std::array<const std::byte, 0>{};
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_class_file(reader);
+    const auto result = parse_class_file(reader);
 
     ASSERT_FALSE(result);
-    EXPECT_EQ(parsing::Error::Truncated, result.error());
+    EXPECT_EQ(Error::Truncated, result.error());
 }
 
 TEST(Parsing, ParsesClassFile) {
@@ -284,7 +286,7 @@ TEST(Parsing, ParsesClassFile) {
     });
 
     reader::Reader reader{input};
-    const auto result = parsing::parse_class_file(reader);
+    const auto result = parse_class_file(reader);
 
     ASSERT_TRUE(result);
 
@@ -312,3 +314,4 @@ TEST(Parsing, ParsesClassFile) {
     ASSERT_EQ(1u, klass.attributes.size());
 }
 
+} // namespace parsing

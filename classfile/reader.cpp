@@ -1,12 +1,13 @@
 #include "reader.h"
 
-reader::Reader::Reader(std::span<const std::byte> bytes) noexcept
-    : remaining_(bytes) {}
+namespace reader {
 
-auto reader::Reader::read_bytes(uint32_t count)
-        -> std::expected<std::span<const std::byte>, reader::Error> {
+Reader::Reader(std::span<const std::byte> bytes) noexcept : remaining_(bytes) {}
+
+auto Reader::read_bytes(std::uint32_t count)
+        -> std::expected<std::span<const std::byte>, Error> {
     if (remaining_.size() < count) {
-        return std::unexpected(reader::Error::Truncated);
+        return std::unexpected(Error::Truncated);
     }
 
     const auto result = remaining_.first(count);
@@ -14,3 +15,5 @@ auto reader::Reader::read_bytes(uint32_t count)
 
     return result;
 }
+
+} // namespace reader

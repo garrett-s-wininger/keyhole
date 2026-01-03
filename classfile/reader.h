@@ -41,6 +41,6 @@ public:
     }
 };
 
-}
+} // namespace reader
 
 #endif // READER_H
