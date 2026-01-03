@@ -131,9 +131,7 @@ auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult 
         for (const auto& method : klass.methods) {
             std::println(
                 "  {}",
-                klass.constant_pool.resolve<kh::jvm::constant_pool::UTF8Entry>(
-                    method.name_index
-                ).text
+                kh::jvm::views::MethodView{klass.constant_pool, method}.name()
             );
         }
     }

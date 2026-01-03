@@ -25,4 +25,14 @@ auto ClassView::superclass() const -> std::string_view {
     ).text;
 }
 
+MethodView::MethodView(
+        const kh::jvm::constant_pool::ConstantPool& pool,
+        const kh::jvm::method::Method& method) : pool(pool), method(method) {}
+
+auto MethodView::name() const -> std::string_view {
+    return pool.resolve<kh::jvm::constant_pool::UTF8Entry>(
+        method.name_index
+    ).text;
+}
+
 } // namespace kh::jvm::views
