@@ -23,9 +23,9 @@ enum class AccessFlags : uint16_t {
 };
 
 struct Method {
-    uint16_t access_flags;
-    uint16_t name_index;
-    uint16_t descriptor_index;
+    std::uint16_t access_flags;
+    std::uint16_t name_index;
+    std::uint16_t descriptor_index;
     std::vector<kh::jvm::attribute::Attribute> attributes;
 };
 

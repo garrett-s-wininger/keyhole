@@ -38,14 +38,11 @@ auto attachment_targets() -> kh::argparse::CommandResult {
     for (const auto& entry : directory_iterator) {
         if (entry.path().filename() == jvm_perf_dir) {
             if (!entry.is_directory()) {
-                return std::unexpected(
-                    kh::argparse::Error{
-                        kh::argparse::Error::Type::CommandExecutionFailure,
-                        std::format(
-                            "User performance data location ({}) not a directory",
-                            entry.path().string()
-                        )
-                    }
+                return kh::argparse::fatal(
+                    std::format(
+                        "User performance data location ({}) not a directory",
+                        entry.path().string()
+                    )
                 );
             }
 
@@ -62,11 +59,8 @@ auto attachment_targets() -> kh::argparse::CommandResult {
     }
 
     if (!found) {
-        return std::unexpected(
-            kh::argparse::Error{
-                kh::argparse::Error::Type::CommandExecutionFailure,
-                "No processes found via user performance data fingerprinting"
-            }
+        return kh::argparse::fatal(
+            "No processes found via user performance data fingerprinting"
         );
     }
 
@@ -77,14 +71,11 @@ auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult 
     const auto result = kh::jvm::parsing::load_class_from_file(target);
 
     if (!result) {
-        return std::unexpected(
-            kh::argparse::Error{
-                kh::argparse::Error::Type::CommandExecutionFailure,
-                std::format(
-                    "Failed to parse class from file ({})",
-                    target
-                )
-            }
+        return kh::argparse::fatal(
+            std::format(
+                "Failed to parse class from file ({})",
+                target
+            )
         );
     }
 
@@ -152,19 +143,44 @@ auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult 
     return {};
 }
 
-auto write_test_class_file(std::string_view target) -> kh::argparse::CommandResult {
-    const std::string class_name{"MyClass"};
-    const std::string superclass_name{"java/lang/Object"};
-    kh::jvm::classfile::ClassFile klass(class_name, superclass_name);
+auto write_modified_class(std::string_view target) -> kh::argparse::CommandResult {
+    const auto result = kh::jvm::parsing::load_class_from_file(target);
 
-    std::ofstream stream{std::filesystem::path{target}};
+    if (!result) {
+        return kh::argparse::fatal(
+            std::format(
+                "Failed to parse class from file ({})",
+                target
+            )
+        );
+    }
+
+    const auto& klass = result.value().class_file;
+    const auto class_view = kh::jvm::views::ClassView{klass};
+    const auto method = class_view.method("main");
+
+    if (!method) {
+        return kh::argparse::fatal("Main method could not be found");
+    }
+
+    const auto attribute = method.value().attribute("Code");
+
+    if (!attribute) {
+        return kh::argparse::fatal("Could not find code attribute for method");
+    }
+
+    // TODO(garrett): Modify code attribute
+
+    const auto source_path = std::filesystem::path{target};
+
+    const auto destination_path = source_path.parent_path()
+        / (source_path.stem().string() + "Modified.class");
+
+    std::ofstream stream{destination_path};
 
     if (!stream) {
-        return std::unexpected(
-            kh::argparse::Error{
-                kh::argparse::Error::Type::CommandExecutionFailure,
-                std::format("Failed to open requested file ({})", target)
-            }
+        return kh::argparse::fatal(
+            std::format("Failed to open requested file ({})", destination_path.string())
         );
     }
 
@@ -180,13 +196,13 @@ auto main(const int argc, const char** argv) -> int {
     >;
 
     using InspectCommand = kh::argparse::Command<"inspect", ::inspect_class_file>;
-    using WriteCommand = kh::argparse::Command<"write-class", ::write_test_class_file>;
+    using ModifyCommand = kh::argparse::Command<"modify-class", ::write_modified_class>;
 
     try {
         const auto result = kh::argparse::CLI<
             AttachmentTargetsCommand,
             InspectCommand,
-            WriteCommand
+            ModifyCommand
         >{
             .name = "KeyHole CLI",
             .version = "0.1.0",

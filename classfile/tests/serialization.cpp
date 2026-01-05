@@ -54,6 +54,8 @@ TEST(Serialization, SerializesMethod) {
         std::byte{0x00}, std::byte{0x03},
         // Descriptor index
         std::byte{0x00}, std::byte{0x04},
+        // Attribute count
+        std::byte{0x00}, std::byte{0x01},
         // Attributes, 1 (empty)
         std::byte{0x00}, std::byte{0x05},
         std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}
@@ -158,9 +160,46 @@ TEST(Serialization, SerializesUTF8Entries) {
 }
 
 TEST(Serialization, SerializesClassFile) {
-    const std::string class_name{"MyClass"};
-    const std::string superclass_name{"java/lang/Object"};
-    const classfile::ClassFile klass(class_name, superclass_name);
+    const auto class_name = std::string{"MyClass"};
+    const auto superclass_name = std::string{"java/lang/Object"};
+    auto klass = classfile::ClassFile(class_name, superclass_name);
+
+    const auto method_name = std::string{"method"};
+    const auto descriptor = "()V";
+
+    klass.constant_pool.add(
+        kh::jvm::constant_pool::UTF8Entry{method_name}
+    );
+
+    klass.constant_pool.add(
+        kh::jvm::constant_pool::UTF8Entry{descriptor}
+    );
+
+    const auto attribute_name = std::string{"Deprecated"};
+
+    klass.constant_pool.add(
+        kh::jvm::constant_pool::UTF8Entry{attribute_name}
+    );
+
+    const auto deprecated_attribute = kh::jvm::attribute::Attribute{
+        .name_index = 7,
+        .data = std::span<const std::byte>{}
+    };
+
+    klass.methods.push_back(
+        kh::jvm::method::Method{
+            .access_flags =
+                static_cast<std::uint16_t>(kh::jvm::method::AccessFlags::ACC_PUBLIC)
+                | static_cast<std::uint16_t>(kh::jvm::method::AccessFlags::ACC_FINAL),
+            .name_index = 5,
+            .descriptor_index = 6,
+            .attributes = std::vector<kh::jvm::attribute::Attribute>{
+                deprecated_attribute
+            }
+        }
+    );
+
+    klass.attributes.push_back(deprecated_attribute);
 
     kh::sinks::VectorSink sink{};
     serialize(sink, klass);
@@ -174,7 +213,7 @@ TEST(Serialization, SerializesClassFile) {
         // Major - u16
         std::byte{0x00}, std::byte{0x37},
         // Constant Pool count + 1
-        std::byte{0x00}, std::byte{0x05},
+        std::byte{0x00}, std::byte{0x08},
         // Name UTF8 Entry
         std::byte{0x01},
         std::byte{0x00}, std::byte{0x07},
@@ -191,6 +230,21 @@ TEST(Serialization, SerializesClassFile) {
         std::byte{'j'}, std::byte{'e'}, std::byte{'c'}, std::byte{'t'},
         // Class info entry
         std::byte{0x07}, std::byte{0x00}, std::byte{0x03},
+        // Name UTF8 Entry
+        std::byte{0x01},
+        std::byte{0x00}, std::byte{0x06},
+        std::byte{'m'}, std::byte{'e'}, std::byte{'t'}, std::byte{'h'},
+        std::byte{'o'}, std::byte{'d'},
+        // Descriptor UTF8 Entry
+        std::byte{0x01},
+        std::byte{0x00}, std::byte{0x03},
+        std::byte{'('}, std::byte{')'}, std::byte{'V'},
+        // Attribute UTF8 Entry
+        std::byte{0x01},
+        std::byte{0x00}, std::byte{0x0A},
+        std::byte{'D'}, std::byte{'e'}, std::byte{'p'}, std::byte{'r'},
+        std::byte{'e'}, std::byte{'c'}, std::byte{'a'}, std::byte{'t'},
+        std::byte{'e'}, std::byte{'d'},
         // Access flags
         std::byte{0x00}, std::byte{0x21},
         // Class name index
@@ -199,12 +253,25 @@ TEST(Serialization, SerializesClassFile) {
         std::byte{0x00}, std::byte{0x04},
         // Interface count
         std::byte{0x00}, std::byte{0x00},
+        // TODO(garrett): Include interfaces
         // Field count
         std::byte{0x00}, std::byte{0x00},
+        // TODO(garrett): Include fields
         // Method count
-        std::byte{0x00}, std::byte{0x00},
+        std::byte{0x00}, std::byte{0x01},
+        // Method
+        std::byte{0x00}, std::byte{0x11},
+        std::byte{0x00}, std::byte{0x05},
+        std::byte{0x00}, std::byte{0x06},
+        std::byte{0x00}, std::byte{0x01},
+        // Method - Deprecated attribute
+        std::byte{0x00}, std::byte{0x07},
+        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
         // Attribute count
-        std::byte{0x00}, std::byte{0x00},
+        std::byte{0x00}, std::byte{0x01},
+        // Deprecated attribute
+        std::byte{0x00}, std::byte{0x07},
+        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
     });
 
     const auto actual = sink.view();

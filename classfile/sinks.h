@@ -10,10 +10,16 @@
 namespace kh::sinks {
 
 template <typename S>
-concept Sink = requires(S& sink, uint8_t u8, uint16_t u16, uint32_t u32) {
+concept Sink = requires(
+        S& sink,
+        const uint8_t u8,
+        const uint16_t u16,
+        const uint32_t u32,
+        const std::span<const std::byte> bytes) {
     { sink.write(u8) } -> std::same_as<void>;
     { sink.write(u16) } -> std::same_as<void>;
     { sink.write(u32) } -> std::same_as<void>;
+    { sink.write_bytes(bytes) } -> std::same_as<void>;
 };
 
 class FileSink {
@@ -23,13 +29,15 @@ public:
     FileSink(std::ofstream&);
 
     template <kh::endian::MultiByteIntegral V>
-    auto write(V value) -> void {
+    auto write(const V value) -> void {
         auto bytes = std::bit_cast<std::array<std::byte, sizeof(V)>>(
             endian::big(value)
         );
 
         target_.write(reinterpret_cast<char*>(bytes.data()), bytes.size());
     }
+
+    auto write_bytes(const std::span<const std::byte> bytes) -> void;
 };
 
 class VectorSink {
@@ -40,7 +48,7 @@ public:
     VectorSink(std::vector<std::byte>&) noexcept;
 
     template <endian::MultiByteIntegral V>
-    auto write(V value) -> void {
+    auto write(const V value) -> void {
         auto bytes = std::bit_cast<std::array<std::byte, sizeof(V)>>(
             kh::endian::big(value)
         );
@@ -49,6 +57,7 @@ public:
     }
 
     auto view() const noexcept -> std::span<const std::byte>;
+    auto write_bytes(const std::span<const std::byte> bytes) -> void;
 };
 
 } // namespace kh::sinks

@@ -13,18 +13,8 @@ auto serialize(
         kh::sinks::Sink auto& sink,
         const kh::jvm::attribute::Attribute& attribute) -> void {
     sink.write(attribute.name_index);
-    sink.write(static_cast<uint32_t>(attribute.data.size()));
-
-    for (const auto byte : attribute.data) {
-        sink.write(static_cast<uint8_t>(byte));
-    }
-}
-
-auto serialize(
-        kh::sinks::Sink auto& sink,
-        const kh::jvm::constant_pool::ClassEntry entry) -> void {
-    sink.write(static_cast<uint8_t>(constant_pool::tag(entry)));
-    sink.write(entry.name_index);
+    sink.write(static_cast<std::uint32_t>(attribute.data.size()));
+    sink.write_bytes(attribute.data);
 }
 
 auto serialize(
@@ -33,6 +23,7 @@ auto serialize(
     sink.write(method.access_flags);
     sink.write(method.name_index);
     sink.write(method.descriptor_index);
+    sink.write(static_cast<std::uint16_t>(method.attributes.size()));
 
     for (const auto& attribute : method.attributes) {
         serialize(sink, attribute);
@@ -41,8 +32,15 @@ auto serialize(
 
 auto serialize(
         kh::sinks::Sink auto& sink,
+        const kh::jvm::constant_pool::ClassEntry entry) -> void {
+    sink.write(static_cast<std::uint8_t>(constant_pool::tag(entry)));
+    sink.write(entry.name_index);
+}
+
+auto serialize(
+        kh::sinks::Sink auto& sink,
         const kh::jvm::constant_pool::MethodReferenceEntry entry) -> void {
-    sink.write(static_cast<uint8_t>(constant_pool::tag(entry)));
+    sink.write(static_cast<std::uint8_t>(constant_pool::tag(entry)));
     sink.write(entry.class_index);
     sink.write(entry.name_and_type_index);
 }
@@ -79,28 +77,34 @@ auto serialize(
 auto serialize(
         kh::sinks::Sink auto& sink,
         const kh::jvm::classfile::ClassFile& klass) -> void {
-    sink.write(static_cast<uint32_t>(0xCAFEBABE));
-    sink.write(static_cast<uint16_t>(klass.version.minor));
-    sink.write(static_cast<uint16_t>(klass.version.major));
-    sink.write(static_cast<uint16_t>(klass.constant_pool.entries().size() + 1));
+    sink.write(static_cast<std::uint32_t>(0xCAFEBABE));
+    sink.write(static_cast<std::uint16_t>(klass.version.minor));
+    sink.write(static_cast<std::uint16_t>(klass.version.major));
+    sink.write(static_cast<std::uint16_t>(klass.constant_pool.entries().size() + 1));
 
     serialize(sink, klass.constant_pool);
 
-    sink.write(static_cast<uint16_t>(klass.access_flags));
-    sink.write(static_cast<uint16_t>(klass.class_index));
-    sink.write(static_cast<uint16_t>(klass.superclass_index));
+    sink.write(static_cast<std::uint16_t>(klass.access_flags));
+    sink.write(static_cast<std::uint16_t>(klass.class_index));
+    sink.write(static_cast<std::uint16_t>(klass.superclass_index));
 
     // TODO(garrett): Write interface entries
-    sink.write(static_cast<uint16_t>(0x0000));
+    sink.write(static_cast<std::uint16_t>(0x0000));
 
     // TODO(garrett): Write field entries
-    sink.write(static_cast<uint16_t>(0x0000));
+    sink.write(static_cast<std::uint16_t>(0x0000));
 
-    sink.write(static_cast<uint16_t>(klass.methods.size()));
-    // TODO(garrett): Write method entries
+    sink.write(static_cast<std::uint16_t>(klass.methods.size()));
 
-    sink.write(static_cast<uint16_t>(klass.attributes.size()));
-    // TODO(garrett): Write attribute entries
+    for (const auto& method : klass.methods) {
+        serialize(sink, method);
+    }
+
+    sink.write(static_cast<std::uint16_t>(klass.attributes.size()));
+
+    for (const auto& attribute : klass.attributes) {
+        serialize(sink, attribute);
+    }
 }
 
 } // namespace kh::jvm::serialization

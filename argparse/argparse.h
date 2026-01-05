@@ -23,6 +23,15 @@ struct Error {
 
 using CommandResult = std::expected<void, Error>;
 
+auto fatal(std::string&& message) noexcept -> CommandResult {
+    return std::unexpected(
+        Error{
+            Error::Type::CommandExecutionFailure,
+            std::move(message)
+        }
+    );
+}
+
 template <typename Fn>
 concept CommandImplementation = requires (Fn f) {
     requires (std::invocable<Fn>);

@@ -4,13 +4,16 @@
 #include "classfile.h"
 
 namespace kh::jvm::views {
-    struct ClassView {
-        const kh::jvm::classfile::ClassFile& klass;
+    struct AttributeView {
+        const kh::jvm::constant_pool::ConstantPool& pool;
+        const kh::jvm::attribute::Attribute& attribute;
 
-        explicit ClassView(const kh::jvm::classfile::ClassFile&);
+        AttributeView(
+            const kh::jvm::constant_pool::ConstantPool& pool,
+            const kh::jvm::attribute::Attribute& attribute
+        );
 
         auto name() const -> std::string_view;
-        auto superclass() const -> std::string_view;
     };
 
     struct MethodView {
@@ -23,6 +26,18 @@ namespace kh::jvm::views {
         );
 
         auto name() const -> std::string_view;
+        auto attribute(std::string_view) const -> std::optional<AttributeView>;
+    };
+
+    struct ClassView {
+        const kh::jvm::classfile::ClassFile& klass;
+
+        explicit ClassView(const kh::jvm::classfile::ClassFile&);
+
+        // TODO(garrett): Also include descriptor to handle overloads
+        auto method(std::string_view) const -> std::optional<MethodView>;
+        auto name() const -> std::string_view;
+        auto superclass() const -> std::string_view;
     };
 } // namespace kh::jvm::views
 
