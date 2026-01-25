@@ -157,7 +157,7 @@ auto write_modified_class(std::string_view target) -> kh::argparse::CommandResul
 
     const auto& klass = result.value().class_file;
     const auto class_view = kh::jvm::views::ClassView{klass};
-    const auto method = class_view.method("main");
+    const auto method = class_view.method("main", "([Ljava/lang/String;)V");
 
     if (!method) {
         return kh::argparse::fatal("Main method could not be found");

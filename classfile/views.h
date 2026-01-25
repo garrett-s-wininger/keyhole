@@ -25,8 +25,9 @@ namespace kh::jvm::views {
             const kh::jvm::method::Method&
         );
 
-        auto name() const -> std::string_view;
         auto attribute(std::string_view) const -> std::optional<AttributeView>;
+        auto descriptor() const -> std::string_view;
+        auto name() const -> std::string_view;
     };
 
     struct ClassView {
@@ -34,8 +35,10 @@ namespace kh::jvm::views {
 
         explicit ClassView(const kh::jvm::classfile::ClassFile&);
 
-        // TODO(garrett): Also include descriptor to handle overloads
         auto method(std::string_view) const -> std::optional<MethodView>;
+        auto method(std::string_view, std::string_view) const
+            -> std::optional<MethodView>;
+
         auto name() const -> std::string_view;
         auto superclass() const -> std::string_view;
     };
