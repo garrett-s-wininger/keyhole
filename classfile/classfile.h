@@ -4,17 +4,20 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <functional>
+#include <string_view>
 #include <vector>
 
 #include "attribute.h"
 #include "constant_pool.h"
+#include "isa.h"
 #include "method.h"
 
 namespace kh::jvm::classfile {
 
 struct Version {
-    uint16_t major;
-    uint16_t minor;
+    std::uint16_t major;
+    std::uint16_t minor;
 };
 
 enum class AccessFlags : uint16_t {
@@ -34,12 +37,19 @@ concept PersistentString =
     std::same_as<std::remove_reference_t<T>, const std::string> &&
     std::is_lvalue_reference_v<T&&>;
 
+enum Error {
+    MethodBodyNotParsable,
+    MethodBodyNotModifyable,
+    MethodDoesNotExist,
+    MethodExists,
+};
+
 struct ClassFile {
     Version version;
-    uint16_t class_index;
-    uint16_t superclass_index;
+    std::uint16_t class_index;
+    std::uint16_t superclass_index;
     kh::jvm::constant_pool::ConstantPool constant_pool;
-    uint16_t access_flags;
+    std::uint16_t access_flags;
     // TODO(garrett): Interface, field storage
     std::vector<kh::jvm::method::Method> methods;
     std::vector<kh::jvm::attribute::Attribute> attributes;
@@ -63,6 +73,35 @@ struct ClassFile {
         constant_pool.add(kh::jvm::constant_pool::ClassEntry{3});
         superclass_index = 4;
     }
+
+    auto add_method(
+            std::string_view,
+            std::string_view,
+            const kh::jvm::isa::InstructionSequence&)
+            -> std::expected<void, Error>;
+
+    auto method(std::string_view)
+        -> std::optional<std::reference_wrapper<kh::jvm::method::Method>>;
+
+    auto method(std::string_view, std::string_view)
+        -> std::optional<std::reference_wrapper<kh::jvm::method::Method>>;
+
+    auto name() -> std::string_view;
+
+    auto prefix_method(
+        std::string_view,
+        std::string_view,
+        const kh::jvm::isa::InstructionSequence&) -> std::expected<void, Error>;
+
+    auto rename(std::string_view) -> void;
+
+    auto replace_method(
+            std::string_view,
+            std::string_view,
+            const kh::jvm::isa::InstructionSequence&)
+            -> std::expected<void, Error>;
+
+    auto superclass() -> std::string_view;
 };
 
 } // namespace kh::jvm::classfile

@@ -1,6 +1,7 @@
 #include <filesystem>
 
 #include "argparse.h"
+#include "isa.h"
 #include "parsing.h"
 #include "serialization.h"
 #include "views.h"
@@ -68,7 +69,7 @@ auto attachment_targets() -> kh::argparse::CommandResult {
 }
 
 auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult {
-    const auto result = kh::jvm::parsing::load_class_from_file(target);
+    auto result = kh::jvm::parsing::load_class_from_file(target);
 
     if (!result) {
         return kh::argparse::fatal(
@@ -79,15 +80,14 @@ auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult 
         );
     }
 
-    const auto& klass = result.value().class_file;
-    const auto class_view = kh::jvm::views::ClassView{klass};
+    auto& klass = result.value().class_file;
 
     std::println("Class File Overview:");
 
     std::println(
         "  Name         - {} ({})",
-        class_view.name(),
-        class_view.superclass()
+        klass.name(),
+        klass.superclass()
     );
 
     std::println(
@@ -119,7 +119,7 @@ auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult 
     if (klass.methods.size() > 0) {
         std::println("Available Methods:");
 
-        for (const auto& method : klass.methods) {
+        for (auto& method : klass.methods) {
             std::println(
                 "  {}",
                 kh::jvm::views::MethodView{klass.constant_pool, method}.name()
@@ -144,9 +144,9 @@ auto inspect_class_file(std::string_view target) -> kh::argparse::CommandResult 
 }
 
 auto write_modified_class(std::string_view target) -> kh::argparse::CommandResult {
-    const auto result = kh::jvm::parsing::load_class_from_file(target);
+    auto parse_result = kh::jvm::parsing::load_class_from_file(target);
 
-    if (!result) {
+    if (!parse_result) {
         return kh::argparse::fatal(
             std::format(
                 "Failed to parse class from file ({})",
@@ -155,24 +155,48 @@ auto write_modified_class(std::string_view target) -> kh::argparse::CommandResul
         );
     }
 
-    const auto& klass = result.value().class_file;
-    const auto class_view = kh::jvm::views::ClassView{klass};
-    const auto method = class_view.method("main", "([Ljava/lang/String;)V");
+    auto& klass = parse_result.value().class_file;
 
-    if (!method) {
-        return kh::argparse::fatal("Main method could not be found");
+    const auto instructions = kh::jvm::isa::InstructionSequence{
+        kh::jvm::isa::Return
+    };
+
+    const auto mutation_result = klass.add_method(
+        "generatedAction"sv, "()V"sv, instructions
+    );
+
+    if (!mutation_result) {
+        return kh::argparse::fatal("Attempted method addition failed");
     }
 
-    const auto attribute = method.value().attribute("Code");
+    const auto prefix_result = klass.prefix_method(
+        "empty"sv,
+        "()V"sv,
+        {
+            kh::jvm::isa::Nop,
+            kh::jvm::isa::Nop,
+            kh::jvm::isa::Nop
+        }
+    );
 
-    if (!attribute) {
-        return kh::argparse::fatal("Could not find code attribute for method");
+    if (!prefix_result) {
+        return kh::argparse::fatal("Attempted method prefixing failed");
     }
 
-    // TODO(garrett): Modify code attribute
+    const auto replacement_result = klass.replace_method(
+        "main"sv,
+        "([Ljava/lang/String;)V"sv,
+        instructions
+    );
+
+    if (!replacement_result) {
+        return kh::argparse::fatal("Attempt to replace method contents failed");
+    }
+
+    const auto new_name = std::string{klass.name()} + "Modified";
+    klass.rename(new_name);
 
     const auto source_path = std::filesystem::path{target};
-
     const auto destination_path = source_path.parent_path()
         / (source_path.stem().string() + "Modified.class");
 
@@ -180,7 +204,9 @@ auto write_modified_class(std::string_view target) -> kh::argparse::CommandResul
 
     if (!stream) {
         return kh::argparse::fatal(
-            std::format("Failed to open requested file ({})", destination_path.string())
+            std::format(
+                "Failed to open requested file ({})", destination_path.string()
+            )
         );
     }
 

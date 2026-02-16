@@ -31,16 +31,45 @@ TEST(Serialization, SerializesAttribute) {
     EXPECT_THAT(expected, EqualsBinary(actual));
 }
 
+TEST(Serialization, SerializesCodeAttribute) {
+    const attribute::CodeAttribute attribute{
+        .max_operand_stack_size = 1,
+        .max_local_variables = 2,
+        .bytecode = {},
+        .exception_table = {},
+        .attributes = {},
+    };
+
+    kh::sinks::VectorSink sink{};
+    serialize(sink, attribute);
+
+    constexpr auto expected = std::to_array({
+        // Max stack values
+        std::byte{0x00}, std::byte{0x01},
+        // Max local variables
+        std::byte{0x00}, std::byte{0x02},
+        // Bytecode size
+        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
+        // Exception table entries
+        std::byte{0x00}, std::byte{0x00},
+        // Attribute count
+        std::byte{0x00}, std::byte{0x00}
+    });
+
+    const auto actual = sink.view();
+    EXPECT_THAT(expected, EqualsBinary(actual));
+}
+
 TEST(Serialization, SerializesMethod) {
     const method::Method method{
         static_cast<uint16_t>(method::AccessFlags::ACC_PUBLIC),
         3u,
         4u,
         std::vector<attribute::Attribute>{
-            attribute::Attribute{
+            attribute::Attribute(
                 5u,
                 std::span<const std::byte>{}
-            }
+            )
         }
     };
 
@@ -181,10 +210,10 @@ TEST(Serialization, SerializesClassFile) {
         kh::jvm::constant_pool::UTF8Entry{attribute_name}
     );
 
-    const auto deprecated_attribute = kh::jvm::attribute::Attribute{
-        .name_index = 7,
-        .data = std::span<const std::byte>{}
-    };
+    auto deprecated_attribute = kh::jvm::attribute::Attribute(
+        7,
+        std::span<const std::byte>{}
+    );
 
     klass.methods.push_back(
         kh::jvm::method::Method{
@@ -199,7 +228,7 @@ TEST(Serialization, SerializesClassFile) {
         }
     );
 
-    klass.attributes.push_back(deprecated_attribute);
+    klass.attributes.push_back(std::move(deprecated_attribute));
 
     kh::sinks::VectorSink sink{};
     serialize(sink, klass);

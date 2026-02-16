@@ -1,6 +1,8 @@
 # CMake
 CMakeFiles/
 CMakeCache.txt
+.cache/
+build/
 cmake_install.cmake
 
 # CTest

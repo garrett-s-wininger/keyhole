@@ -59,7 +59,7 @@ public:
     auto try_add_utf8_entry(std::string_view) -> std::size_t;
 
     template <typename T>
-    auto resolve(std::uint16_t index) const -> const T& {
+    auto resolve(std::uint16_t index) -> T& {
         if (index >= resolution_table_.size()) {
             throw std::out_of_range(
                 std::format("Invalid constant pool access at index {}", index)
@@ -77,7 +77,7 @@ public:
             );
         }
 
-        const auto& entry = entries_[entry_idx.value()];
+        auto& entry = entries_[entry_idx.value()];
 
         if (!std::holds_alternative<T>(entry)) {
             throw std::runtime_error(

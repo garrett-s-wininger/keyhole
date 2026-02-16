@@ -12,9 +12,9 @@ namespace kh::sinks {
 template <typename S>
 concept Sink = requires(
         S& sink,
-        const uint8_t u8,
-        const uint16_t u16,
-        const uint32_t u32,
+        const std::uint8_t u8,
+        const std::uint16_t u16,
+        const std::uint32_t u32,
         const std::span<const std::byte> bytes) {
     { sink.write(u8) } -> std::same_as<void>;
     { sink.write(u16) } -> std::same_as<void>;
@@ -56,6 +56,7 @@ public:
         buffer_.insert(buffer_.end(), bytes.begin(), bytes.end());
     }
 
+    auto extract() && noexcept -> std::vector<std::byte>;
     auto view() const noexcept -> std::span<const std::byte>;
     auto write_bytes(const std::span<const std::byte> bytes) -> void;
 };

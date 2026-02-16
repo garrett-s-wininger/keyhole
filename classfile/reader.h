@@ -10,6 +10,7 @@
 namespace kh::reader {
 
 enum Error {
+    EndOfStream,
     Truncated,
 };
 
@@ -18,6 +19,8 @@ private:
     std::span<const std::byte> remaining_;
 public:
     explicit Reader(std::span<const std::byte>) noexcept;
+
+    auto read_byte() -> std::expected<const std::byte, Error>;
 
     auto read_bytes(uint32_t)
         -> std::expected<std::span<const std::byte>, Error>;

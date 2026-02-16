@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
 
 #include "constant_pool.h"
-#include "tests/helpers.h"
 
 using namespace std::literals;
 
@@ -20,26 +19,26 @@ TEST(ConstantPool, GeneratesCorrectTagValues) {
 }
 
 TEST(ConstantPool, ResolveFailsOnTypeMismatch) {
-    const ConstantPool pool{ClassEntry{1u}};
+    ConstantPool pool{ClassEntry{1u}};
 
     ASSERT_ANY_THROW(pool.resolve<UTF8Entry>(1u));
 }
 
 TEST(ConstantPool, ResolveFailsOnOutOfBoundsIndex) {
-    const ConstantPool pool{};
+    ConstantPool pool{};
     ASSERT_ANY_THROW(pool.resolve<UTF8Entry>(15u));
 }
 
 TEST(ConstantPool, ResolveFailesOnZeroIndex) {
     const auto entry_text = std::string{"Test"};
-    const ConstantPool pool{UTF8Entry{entry_text}};
+    ConstantPool pool{UTF8Entry{entry_text}};
 
     ASSERT_ANY_THROW(pool.resolve<UTF8Entry>(0u));
 }
 
 TEST(ConstantPool, ResolveProperlyGrabsEntryReference) {
     const auto entry_text = std::string{"ExampleEntry"};
-    const ConstantPool pool{UTF8Entry{entry_text}};
+    ConstantPool pool{UTF8Entry{entry_text}};
 
     const auto& entry = pool.resolve<UTF8Entry>(1u);
     const auto& entry2 = pool.resolve<UTF8Entry>(1u);

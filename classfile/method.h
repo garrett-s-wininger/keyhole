@@ -22,6 +22,13 @@ enum class AccessFlags : uint16_t {
     ACC_SYNTHETIC = 0x1000
 };
 
+inline auto operator|(const AccessFlags lhs, const AccessFlags rhs)
+        -> AccessFlags {
+    return static_cast<AccessFlags>(
+        static_cast<std::uint16_t>(lhs) | static_cast<std::uint16_t>(rhs)
+    );
+}
+
 struct Method {
     std::uint16_t access_flags;
     std::uint16_t name_index;

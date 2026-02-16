@@ -1,47 +1,41 @@
 #ifndef VIEWS_H
 #define VIEWS_H
 
-#include "classfile.h"
+#include "attribute.h"
+#include "constant_pool.h"
+#include "method.h"
+#include "parsing.h"
 
 namespace kh::jvm::views {
+
     struct AttributeView {
-        const kh::jvm::constant_pool::ConstantPool& pool;
-        const kh::jvm::attribute::Attribute& attribute;
+        kh::jvm::constant_pool::ConstantPool& pool;
+        kh::jvm::attribute::Attribute& attribute;
 
         AttributeView(
-            const kh::jvm::constant_pool::ConstantPool& pool,
-            const kh::jvm::attribute::Attribute& attribute
+            kh::jvm::constant_pool::ConstantPool& pool,
+            kh::jvm::attribute::Attribute& attribute
         );
 
-        auto name() const -> std::string_view;
+        auto name() -> std::string_view;
+        auto to_code() const
+            -> std::expected<kh::jvm::attribute::CodeAttribute, kh::jvm::parsing::Error>;
     };
 
     struct MethodView {
-        const kh::jvm::constant_pool::ConstantPool& pool;
-        const kh::jvm::method::Method& method;
+        kh::jvm::constant_pool::ConstantPool& pool;
+        kh::jvm::method::Method& method;
 
         MethodView(
-            const kh::jvm::constant_pool::ConstantPool&,
-            const kh::jvm::method::Method&
+            kh::jvm::constant_pool::ConstantPool&,
+            kh::jvm::method::Method&
         );
 
-        auto attribute(std::string_view) const -> std::optional<AttributeView>;
-        auto descriptor() const -> std::string_view;
-        auto name() const -> std::string_view;
+        auto attribute(std::string_view) -> std::optional<AttributeView>;
+        auto descriptor() -> std::string_view;
+        auto name() -> std::string_view;
     };
 
-    struct ClassView {
-        const kh::jvm::classfile::ClassFile& klass;
-
-        explicit ClassView(const kh::jvm::classfile::ClassFile&);
-
-        auto method(std::string_view) const -> std::optional<MethodView>;
-        auto method(std::string_view, std::string_view) const
-            -> std::optional<MethodView>;
-
-        auto name() const -> std::string_view;
-        auto superclass() const -> std::string_view;
-    };
 } // namespace kh::jvm::views
 
 #endif // VIEWS_H

@@ -19,6 +19,22 @@ auto serialize(
 
 auto serialize(
         kh::sinks::Sink auto& sink,
+        const kh::jvm::attribute::CodeAttribute& attribute) -> void {
+    sink.write(attribute.max_operand_stack_size);
+    sink.write(attribute.max_local_variables);
+    sink.write(static_cast<std::uint32_t>(attribute.bytecode.size()));
+    sink.write_bytes(attribute.bytecode);
+    sink.write(static_cast<std::uint16_t>(attribute.exception_table.size()));
+    sink.write_bytes(attribute.exception_table);
+    sink.write(static_cast<std::uint16_t>(attribute.attributes.size()));
+
+    for (const auto& nested_attribute : attribute.attributes) {
+        serialize(sink, nested_attribute);
+    }
+}
+
+auto serialize(
+        kh::sinks::Sink auto& sink,
         const kh::jvm::method::Method& method) -> void {
     sink.write(method.access_flags);
     sink.write(method.name_index);

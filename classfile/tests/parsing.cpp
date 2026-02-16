@@ -1,5 +1,9 @@
+#include <ranges>
+
 #include "gtest/gtest.h"
 
+#include "isa.h"
+#include "reader.h"
 #include "parsing.h"
 
 using namespace std::literals;
@@ -29,7 +33,7 @@ TEST(Parsing, ParsesAttribute) {
 }
 
 TEST(Parsing, DetectsInvalidConstantPoolTag) {
-    constexpr auto input = std::array<std::byte, 1>{
+    constexpr auto input = std::array<const std::byte, 1>{
         std::byte{0xFF}
     };
 
@@ -44,8 +48,33 @@ TEST(Parsing, DetectsInvalidConstantPoolTag) {
     );
 }
 
+TEST(Parsing, ParsesNoOperandBytecode) {
+    constexpr auto input = std::array<const std::byte, 3> {
+        std::byte{0x00}, std::byte{0xca}, std::byte{0xb1}
+    };
+
+    auto reader = kh::reader::Reader{input};
+    const auto result = parse_bytecode(reader);
+
+    ASSERT_TRUE(result);
+    const auto instructions = result.value();
+
+    ASSERT_EQ(input.size(), instructions.size());
+
+    for (const auto& pair : std::views::zip(input, instructions)) {
+        ASSERT_EQ(
+            std::get<0>(pair),
+            static_cast<std::byte>(
+                std::get<kh::jvm::isa::NoOperandInstruction>(
+                    std::get<1>(pair)
+                ).opcode
+            )
+        );
+    }
+}
+
 TEST(Parsing, ParsesClassEntry) {
-    constexpr auto input = std::array<std::byte, 3>{
+    constexpr auto input = std::array<const std::byte, 3>{
         // Tag
         std::byte{0x07},
         // Index
@@ -62,6 +91,61 @@ TEST(Parsing, ParsesClassEntry) {
 
     const auto entry = std::get<constant_pool::ClassEntry>(result.value());
     ASSERT_EQ(1, entry.name_index);
+}
+
+TEST(Parsing, ParsesCodeAttribute) {
+    using kh::jvm::isa::Opcode;
+
+    constexpr auto input = std::to_array({
+        // Max stack operands
+        std::byte{0x00}, std::byte{0x05},
+        // Local variable array entry count
+        std::byte{0x00}, std::byte{0x01},
+        // Bytecode size
+        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x01},
+        // Bytecode instructions
+        static_cast<std::byte>(Opcode::Return),
+        // Exception table size
+        std::byte{0x00}, std::byte{0x08},
+        // NOTE(garrett): The following exception handler is malformed given
+        // the actual code instructions above but is sufficient to test the
+        // parsing code as it doesn't care about JVM semantics.
+        //
+        // Exception handler 1, start counter
+        std::byte{0x00}, std::byte{0x00},
+        // Exception handler 1, end counter
+        std::byte{0x00}, std::byte{0x10},
+        // Exception handler 1, handler counter
+        std::byte{0x00}, std::byte{0x42},
+        // Exception handler 1, catch type
+        std::byte{0x00}, std::byte{0x00},
+        // Attributes count
+        std::byte{0x00}, std::byte{0x01},
+        // Attribute 1 - name index
+        std::byte{0x00}, std::byte{0x15},
+        // Attribute 1 - length
+        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}
+    });
+
+    auto reader = kh::reader::Reader{input};
+    const auto result = parse_code_attribute(reader);
+
+    ASSERT_TRUE(result);
+    const auto attribute_data = result.value();
+
+    ASSERT_EQ(5, attribute_data.max_operand_stack_size);
+    ASSERT_EQ(1, attribute_data.max_local_variables);
+
+    ASSERT_EQ(1, attribute_data.bytecode.size());
+    ASSERT_EQ(
+        static_cast<std::byte>(Opcode::Return), attribute_data.bytecode[0]
+    );
+
+    ASSERT_EQ(8, attribute_data.exception_table.size());
+
+    ASSERT_EQ(1, attribute_data.attributes.size());
+    ASSERT_EQ(0x15, attribute_data.attributes[0].name_index);
+    ASSERT_EQ(0, attribute_data.attributes[0].data.size());
 }
 
 TEST(Parsing, ParsesMethodReferenceEntry) {

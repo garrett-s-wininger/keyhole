@@ -2,6 +2,7 @@
 #define ENDIAN_H
 
 #include <bit>
+#include <concepts>
 #include <cstdint>
 
 #ifdef __cplusplus
@@ -11,13 +12,13 @@ namespace kh::endian {
 
 template <typename T>
 concept MultiByteIntegral =
-    std::same_as<T, uint8_t>
-    || std::same_as<T, uint16_t>
-    || std::same_as<T, uint32_t>;
+    std::same_as<T, std::uint8_t>
+    || std::same_as<T, std::uint16_t>
+    || std::same_as<T, std::uint32_t>;
 
 template <MultiByteIntegral V>
 auto big(V value) {
-    if constexpr (std::same_as<V, uint8_t>) {
+    if constexpr (std::same_as<V, std::uint8_t>) {
         return value;
     } else {
         V result = value;

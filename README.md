@@ -55,4 +55,4 @@ At the time of writing `kh-cli` provides two features:
 `kh-cli inspect <FILENAME>.class`
 
 2. An example serialized file to validate code generation, invoked via
-`kh-cli test-class <FILENAME>.class`
+`kh-cli modify-class <FILENAME>.class`
