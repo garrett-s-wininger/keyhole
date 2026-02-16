@@ -2,26 +2,27 @@
 
 namespace kh::sinks {
 
-FileSink::FileSink(std::ofstream& target) : target_(target) {}
+FileSink::FileSink(std::ofstream &target) : target_(target) {}
 
 auto FileSink::write_bytes(const std::span<const std::byte> bytes) -> void {
-    target_.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+  target_.write(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
 
 VectorSink::VectorSink() : buffer_(std::vector<std::byte>{}) {}
 
-VectorSink::VectorSink(std::vector<std::byte>& buffer) noexcept : buffer_(buffer) {}
+VectorSink::VectorSink(std::vector<std::byte> &buffer) noexcept
+    : buffer_(buffer) {}
 
 auto VectorSink::extract() && noexcept -> std::vector<std::byte> {
-    return std::move(buffer_);
+  return std::move(buffer_);
 }
 
 auto VectorSink::view() const noexcept -> std::span<const std::byte> {
-    return buffer_;
+  return buffer_;
 }
 
 auto VectorSink::write_bytes(const std::span<const std::byte> bytes) -> void {
-    buffer_.append_range(bytes);
+  buffer_.append_range(bytes);
 }
 
 } // namespace kh::sinks

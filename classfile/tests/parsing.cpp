@@ -3,398 +3,358 @@
 #include "gtest/gtest.h"
 
 #include "isa.h"
-#include "reader.h"
 #include "parsing.h"
+#include "reader.h"
 
 using namespace std::literals;
 
 namespace kh::jvm::parsing {
 
 TEST(Parsing, ParsesAttribute) {
-    constexpr auto input = std::array<const std::byte, 7> {
-        // Name index
-        std::byte{0x00}, std::byte{0x01},
-        // Attribute length,
-        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x01},
-        // Content
-        std::byte{'A'}
-    };
+  constexpr auto input = std::array<const std::byte, 7>{
+      // Name index
+      std::byte{0x00}, std::byte{0x01},
+      // Attribute length,
+      std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x01},
+      // Content
+      std::byte{'A'}};
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_attribute(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_attribute(reader);
 
-    ASSERT_TRUE(result);
+  ASSERT_TRUE(result);
 
-    const auto attribute = result.value();
+  const auto attribute = result.value();
 
-    ASSERT_EQ(1, attribute.name_index);
-    ASSERT_EQ(1, attribute.data.size());
-    ASSERT_EQ(std::byte{'A'}, attribute.data[0]);
+  ASSERT_EQ(1, attribute.name_index);
+  ASSERT_EQ(1, attribute.data.size());
+  ASSERT_EQ(std::byte{'A'}, attribute.data[0]);
 }
 
 TEST(Parsing, DetectsInvalidConstantPoolTag) {
-    constexpr auto input = std::array<const std::byte, 1>{
-        std::byte{0xFF}
-    };
+  constexpr auto input = std::array<const std::byte, 1>{std::byte{0xFF}};
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_constant_pool_entry(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_constant_pool_entry(reader);
 
-    ASSERT_FALSE(result);
+  ASSERT_FALSE(result);
 
-    ASSERT_EQ(
-        Error::InvalidConstantPoolTag,
-        result.error()
-    );
+  ASSERT_EQ(Error::InvalidConstantPoolTag, result.error());
 }
 
 TEST(Parsing, ParsesNoOperandBytecode) {
-    constexpr auto input = std::array<const std::byte, 3> {
-        std::byte{0x00}, std::byte{0xca}, std::byte{0xb1}
-    };
+  constexpr auto input = std::array<const std::byte, 3>{
+      std::byte{0x00}, std::byte{0xca}, std::byte{0xb1}};
 
-    auto reader = kh::reader::Reader{input};
-    const auto result = parse_bytecode(reader);
+  auto reader = kh::reader::Reader{input};
+  const auto result = parse_bytecode(reader);
 
-    ASSERT_TRUE(result);
-    const auto instructions = result.value();
+  ASSERT_TRUE(result);
+  const auto instructions = result.value();
 
-    ASSERT_EQ(input.size(), instructions.size());
+  ASSERT_EQ(input.size(), instructions.size());
 
-    for (const auto& pair : std::views::zip(input, instructions)) {
-        ASSERT_EQ(
-            std::get<0>(pair),
-            static_cast<std::byte>(
-                std::get<kh::jvm::isa::NoOperandInstruction>(
-                    std::get<1>(pair)
-                ).opcode
-            )
-        );
-    }
+  for (const auto &pair : std::views::zip(input, instructions)) {
+    ASSERT_EQ(
+        std::get<0>(pair),
+        static_cast<std::byte>(
+            std::get<kh::jvm::isa::NoOperandInstruction>(std::get<1>(pair))
+                .opcode));
+  }
 }
 
 TEST(Parsing, ParsesClassEntry) {
-    constexpr auto input = std::array<const std::byte, 3>{
-        // Tag
-        std::byte{0x07},
-        // Index
-        std::byte{0x00}, std::byte{0x01}
-    };
+  constexpr auto input =
+      std::array<const std::byte, 3>{// Tag
+                                     std::byte{0x07},
+                                     // Index
+                                     std::byte{0x00}, std::byte{0x01}};
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_constant_pool_entry(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_constant_pool_entry(reader);
 
-    ASSERT_TRUE(result);
-    ASSERT_TRUE(
-        std::holds_alternative<constant_pool::ClassEntry>(result.value())
-    );
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(
+      std::holds_alternative<constant_pool::ClassEntry>(result.value()));
 
-    const auto entry = std::get<constant_pool::ClassEntry>(result.value());
-    ASSERT_EQ(1, entry.name_index);
+  const auto entry = std::get<constant_pool::ClassEntry>(result.value());
+  ASSERT_EQ(1, entry.name_index);
 }
 
 TEST(Parsing, ParsesCodeAttribute) {
-    using kh::jvm::isa::Opcode;
+  using kh::jvm::isa::Opcode;
 
-    constexpr auto input = std::to_array({
-        // Max stack operands
-        std::byte{0x00}, std::byte{0x05},
-        // Local variable array entry count
-        std::byte{0x00}, std::byte{0x01},
-        // Bytecode size
-        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x01},
-        // Bytecode instructions
-        static_cast<std::byte>(Opcode::Return),
-        // Exception table size
-        std::byte{0x00}, std::byte{0x08},
-        // NOTE(garrett): The following exception handler is malformed given
-        // the actual code instructions above but is sufficient to test the
-        // parsing code as it doesn't care about JVM semantics.
-        //
-        // Exception handler 1, start counter
-        std::byte{0x00}, std::byte{0x00},
-        // Exception handler 1, end counter
-        std::byte{0x00}, std::byte{0x10},
-        // Exception handler 1, handler counter
-        std::byte{0x00}, std::byte{0x42},
-        // Exception handler 1, catch type
-        std::byte{0x00}, std::byte{0x00},
-        // Attributes count
-        std::byte{0x00}, std::byte{0x01},
-        // Attribute 1 - name index
-        std::byte{0x00}, std::byte{0x15},
-        // Attribute 1 - length
-        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}
-    });
+  constexpr auto input = std::to_array(
+      {// Max stack operands
+       std::byte{0x00}, std::byte{0x05},
+       // Local variable array entry count
+       std::byte{0x00}, std::byte{0x01},
+       // Bytecode size
+       std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x01},
+       // Bytecode instructions
+       static_cast<std::byte>(Opcode::Return),
+       // Exception table size
+       std::byte{0x00}, std::byte{0x08},
+       // NOTE(garrett): The following exception handler is malformed given
+       // the actual code instructions above but is sufficient to test the
+       // parsing code as it doesn't care about JVM semantics.
+       //
+       // Exception handler 1, start counter
+       std::byte{0x00}, std::byte{0x00},
+       // Exception handler 1, end counter
+       std::byte{0x00}, std::byte{0x10},
+       // Exception handler 1, handler counter
+       std::byte{0x00}, std::byte{0x42},
+       // Exception handler 1, catch type
+       std::byte{0x00}, std::byte{0x00},
+       // Attributes count
+       std::byte{0x00}, std::byte{0x01},
+       // Attribute 1 - name index
+       std::byte{0x00}, std::byte{0x15},
+       // Attribute 1 - length
+       std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}});
 
-    auto reader = kh::reader::Reader{input};
-    const auto result = parse_code_attribute(reader);
+  auto reader = kh::reader::Reader{input};
+  const auto result = parse_code_attribute(reader);
 
-    ASSERT_TRUE(result);
-    const auto attribute_data = result.value();
+  ASSERT_TRUE(result);
+  const auto attribute_data = result.value();
 
-    ASSERT_EQ(5, attribute_data.max_operand_stack_size);
-    ASSERT_EQ(1, attribute_data.max_local_variables);
+  ASSERT_EQ(5, attribute_data.max_operand_stack_size);
+  ASSERT_EQ(1, attribute_data.max_local_variables);
 
-    ASSERT_EQ(1, attribute_data.bytecode.size());
-    ASSERT_EQ(
-        static_cast<std::byte>(Opcode::Return), attribute_data.bytecode[0]
-    );
+  ASSERT_EQ(1, attribute_data.bytecode.size());
+  ASSERT_EQ(static_cast<std::byte>(Opcode::Return), attribute_data.bytecode[0]);
 
-    ASSERT_EQ(8, attribute_data.exception_table.size());
+  ASSERT_EQ(8, attribute_data.exception_table.size());
 
-    ASSERT_EQ(1, attribute_data.attributes.size());
-    ASSERT_EQ(0x15, attribute_data.attributes[0].name_index);
-    ASSERT_EQ(0, attribute_data.attributes[0].data.size());
+  ASSERT_EQ(1, attribute_data.attributes.size());
+  ASSERT_EQ(0x15, attribute_data.attributes[0].name_index);
+  ASSERT_EQ(0, attribute_data.attributes[0].data.size());
 }
 
 TEST(Parsing, ParsesMethodReferenceEntry) {
-    constexpr auto input = std::array<std::byte, 5>{
-        // Tag
-        std::byte{0x0A},
-        // Class index
-        std::byte{0x00}, std::byte{0x01},
-        // Descriptor index
-        std::byte{0x00}, std::byte{0x02}
-    };
+  constexpr auto input =
+      std::array<std::byte, 5>{// Tag
+                               std::byte{0x0A},
+                               // Class index
+                               std::byte{0x00}, std::byte{0x01},
+                               // Descriptor index
+                               std::byte{0x00}, std::byte{0x02}};
 
+  kh::reader::Reader reader{input};
+  const auto result = parse_constant_pool_entry(reader);
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_constant_pool_entry(reader);
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(std::holds_alternative<constant_pool::MethodReferenceEntry>(
+      result.value()));
 
-    ASSERT_TRUE(result);
-    ASSERT_TRUE(
-        std::holds_alternative<constant_pool::MethodReferenceEntry>(result.value())
-    );
-
-    const auto entry = std::get<constant_pool::MethodReferenceEntry>(result.value());
-    ASSERT_EQ(1, entry.class_index);
-    ASSERT_EQ(2, entry.name_and_type_index);
+  const auto entry =
+      std::get<constant_pool::MethodReferenceEntry>(result.value());
+  ASSERT_EQ(1, entry.class_index);
+  ASSERT_EQ(2, entry.name_and_type_index);
 }
 
 TEST(Parsing, ParsesNameAndTypeEntry) {
-    constexpr auto input = std::array<std::byte, 5>{
-        // Tag
-        std::byte{0x0C},
-        // Name index
-        std::byte{0x00}, std::byte{0x02},
-        // Descriptor index
-        std::byte{0x00}, std::byte{0x04}
-    };
+  constexpr auto input =
+      std::array<std::byte, 5>{// Tag
+                               std::byte{0x0C},
+                               // Name index
+                               std::byte{0x00}, std::byte{0x02},
+                               // Descriptor index
+                               std::byte{0x00}, std::byte{0x04}};
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_constant_pool_entry(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_constant_pool_entry(reader);
 
-    ASSERT_TRUE(result);
-    ASSERT_TRUE(
-        std::holds_alternative<constant_pool::NameAndTypeEntry>(result.value())
-    );
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(
+      std::holds_alternative<constant_pool::NameAndTypeEntry>(result.value()));
 
-    const auto entry = std::get<constant_pool::NameAndTypeEntry>(result.value());
-    ASSERT_EQ(2, entry.name_index);
-    ASSERT_EQ(4, entry.descriptor_index);
+  const auto entry = std::get<constant_pool::NameAndTypeEntry>(result.value());
+  ASSERT_EQ(2, entry.name_index);
+  ASSERT_EQ(4, entry.descriptor_index);
 }
 
 TEST(Parsing, ParsesUTF8Entry) {
-    constexpr auto input = std::array<std::byte, 8>{
-        // Tag
-        std::byte{0x01},
-        // Length
-        std::byte{0x00}, std::byte{0x05},
-        // Content
-        std::byte{'C'}, std::byte{'l'}, std::byte{'a'},
-        std::byte{'s'}, std::byte{'s'}
-    };
+  constexpr auto input =
+      std::array<std::byte, 8>{// Tag
+                               std::byte{0x01},
+                               // Length
+                               std::byte{0x00}, std::byte{0x05},
+                               // Content
+                               std::byte{'C'}, std::byte{'l'}, std::byte{'a'},
+                               std::byte{'s'}, std::byte{'s'}};
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_constant_pool_entry(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_constant_pool_entry(reader);
 
-    ASSERT_TRUE(result);
-    ASSERT_TRUE(
-        std::holds_alternative<constant_pool::UTF8Entry>(result.value())
-    );
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(std::holds_alternative<constant_pool::UTF8Entry>(result.value()));
 
-    const auto entry = std::get<constant_pool::UTF8Entry>(result.value());
+  const auto entry = std::get<constant_pool::UTF8Entry>(result.value());
 
-    ASSERT_EQ(5, entry.text.size());
-    ASSERT_EQ("Class"sv, entry.text);
+  ASSERT_EQ(5, entry.text.size());
+  ASSERT_EQ("Class"sv, entry.text);
 }
 
 TEST(Parsing, ParsesConstantPool) {
-    constexpr auto input = std::array<std::byte, 7>{
-        // UTF8 entry
-        std::byte{0x01},
-        std::byte{0x00}, std::byte{0x01},
-        std::byte{'A'},
-        // Class entry
-        std::byte{0x07},
-        std::byte{0x00}, std::byte{0x01}
-    };
+  constexpr auto input = std::array<std::byte, 7>{
+      // UTF8 entry
+      std::byte{0x01}, std::byte{0x00}, std::byte{0x01}, std::byte{'A'},
+      // Class entry
+      std::byte{0x07}, std::byte{0x00}, std::byte{0x01}};
 
-    kh::reader::Reader reader{input};
-    const auto pool_parse_result = parse_constant_pool(reader, 2);
+  kh::reader::Reader reader{input};
+  const auto pool_parse_result = parse_constant_pool(reader, 2);
 
-    ASSERT_TRUE(pool_parse_result);
-    ASSERT_EQ(2uz, pool_parse_result.value().entries().size());
+  ASSERT_TRUE(pool_parse_result);
+  ASSERT_EQ(2uz, pool_parse_result.value().entries().size());
 }
 
 TEST(Parsing, ParsesMethod) {
-    constexpr auto input = std::array<const std::byte, 15>{
-        // Access
-        std::byte{0x00}, std::byte{0x11},
-        // Name index
-        std::byte{0x00}, std::byte{0x01},
-        // Descriptor index
-        std::byte{0x00}, std::byte{0x02},
-        // Attribute count
-        std::byte{0x00}, std::byte{0x01},
-        // Attribute name index
-        std::byte{0x00}, std::byte{0x0A},
-        // Attribute length
-        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x01},
-        // Attribute data
-        std::byte{'Z'}
-    };
+  constexpr auto input = std::array<const std::byte, 15>{
+      // Access
+      std::byte{0x00}, std::byte{0x11},
+      // Name index
+      std::byte{0x00}, std::byte{0x01},
+      // Descriptor index
+      std::byte{0x00}, std::byte{0x02},
+      // Attribute count
+      std::byte{0x00}, std::byte{0x01},
+      // Attribute name index
+      std::byte{0x00}, std::byte{0x0A},
+      // Attribute length
+      std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x01},
+      // Attribute data
+      std::byte{'Z'}};
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_method(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_method(reader);
 
-    ASSERT_TRUE(result);
-    const auto method = result.value();
+  ASSERT_TRUE(result);
+  const auto method = result.value();
 
-    ASSERT_EQ(
-        static_cast<uint16_t>(method::AccessFlags::ACC_PUBLIC)
-        | static_cast<uint16_t>(method::AccessFlags::ACC_FINAL),
-        method.access_flags
-    );
+  ASSERT_EQ(static_cast<uint16_t>(method::AccessFlags::ACC_PUBLIC) |
+                static_cast<uint16_t>(method::AccessFlags::ACC_FINAL),
+            method.access_flags);
 
-    ASSERT_EQ(1u, method.name_index);
-    ASSERT_EQ(2u, method.descriptor_index);
-    ASSERT_EQ(1u, method.attributes.size());
+  ASSERT_EQ(1u, method.name_index);
+  ASSERT_EQ(2u, method.descriptor_index);
+  ASSERT_EQ(1u, method.attributes.size());
 }
 
 TEST(Parsing, DetectsInvalidMagic) {
-    const auto input = std::to_array({
-        std::byte{0xBE}, std::byte{0xBA}, std::byte{0xFE}, std::byte{0xCA},
-        // NOTE(garrett): Remaining bytes just padding to handle bulk read
-        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
-        std::byte{0x00}, std::byte{0x00}
-    });
+  const auto input = std::to_array(
+      {std::byte{0xBE}, std::byte{0xBA}, std::byte{0xFE}, std::byte{0xCA},
+       // NOTE(garrett): Remaining bytes just padding to handle bulk read
+       std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
+       std::byte{0x00}, std::byte{0x00}});
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_class_file(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_class_file(reader);
 
-    ASSERT_FALSE(result);
-    EXPECT_EQ(Error::InvalidMagic, result.error());
+  ASSERT_FALSE(result);
+  EXPECT_EQ(Error::InvalidMagic, result.error());
 }
 
 TEST(Parsing, DetectsTruncation) {
-    const auto input = std::array<const std::byte, 0>{};
+  const auto input = std::array<const std::byte, 0>{};
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_class_file(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_class_file(reader);
 
-    ASSERT_FALSE(result);
-    EXPECT_EQ(Error::Truncated, result.error());
+  ASSERT_FALSE(result);
+  EXPECT_EQ(Error::Truncated, result.error());
 }
 
 TEST(Parsing, ParsesClassFile) {
-    constexpr auto input = std::to_array<const std::byte>({
-        // NOTE(garrett): All multi-byte values in Big-Endian representation
-        // Magic - u32
-        std::byte{0xCA}, std::byte{0xFE}, std::byte{0xBA}, std::byte{0xBE},
-        // Minor - u16
-        std::byte{0x00}, std::byte{0x00},
-        // Major - u16
-        std::byte{0x00}, std::byte{0x3D},
-        // Constant pool count + 1
-        std::byte{0x00}, std::byte{0x08},
-        // CP #1 - UTF8
-        std::byte{0x01},
-        std::byte{0x00}, std::byte{0x01}, std::byte{'A'},
-        // CP #2 - Class
-        std::byte{0x07},
-        std::byte{0x00}, std::byte{0x01},
-        // CP #3 - UTF8
-        std::byte{0x01},
-        std::byte{0x00}, std::byte{0x10},
-        std::byte{'j'}, std::byte{'a'}, std::byte{'v'}, std::byte{'a'},
-        std::byte{'/'}, std::byte{'l'}, std::byte{'a'}, std::byte{'n'},
-        std::byte{'g'}, std::byte{'/'}, std::byte{'O'}, std::byte{'b'},
-        std::byte{'j'}, std::byte{'e'}, std::byte{'c'}, std::byte{'t'},
-        // CP #4 - Class
-        std::byte{0x07},
-        std::byte{0x00}, std::byte{0x03},
-        // CP #5 - UTF8
-        std::byte{0x01},
-        std::byte{0x00}, std::byte{0x06},
-        std::byte{'<'}, std::byte{'i'}, std::byte{'n'}, std::byte{'i'},
-        std::byte{'t'}, std::byte{'>'},
-        // CP #6 - UTF8
-        std::byte{0x01},
-        std::byte{0x00}, std::byte{0x03},
-        std::byte{'('}, std::byte{')'}, std::byte{'V'},
-        // CP #7 - UTF8
-        std::byte{0x01},
-        std::byte{0x00}, std::byte{0x0A},
-        std::byte{'D'}, std::byte{'e'}, std::byte{'p'}, std::byte{'r'},
-        std::byte{'e'}, std::byte{'c'}, std::byte{'a'}, std::byte{'t'},
-        std::byte{'e'}, std::byte{'d'},
-        // Access flags
-        std::byte{0x00}, std::byte{0x31},
-        // Class index
-        std::byte{0x00}, std::byte{0x02},
-        // Superclass index
-        std::byte{0x00}, std::byte{0x04},
-        // Interface count
-        std::byte{0x00}, std::byte{0x00},
-        // Field count
-        std::byte{0x00}, std::byte{0x00},
-        // Method count
-        std::byte{0x00}, std::byte{0x01},
-        // Method access flags
-        std::byte{0x00}, std::byte{0x01},
-        // Method name index
-        std::byte{0x00}, std::byte{0x05},
-        // Method descriptor index
-        std::byte{0x00}, std::byte{0x06},
-        // Method attribute count
-        std::byte{0x00}, std::byte{0x00},
-        // Attribute count
-        std::byte{0x00}, std::byte{0x01},
-        // Attribute name index
-        std::byte{0x00}, std::byte{0x07},
-        // Attribute length
-        std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}
-    });
+  constexpr auto input = std::to_array<const std::byte>(
+      {// NOTE(garrett): All multi-byte values in Big-Endian representation
+       // Magic - u32
+       std::byte{0xCA}, std::byte{0xFE}, std::byte{0xBA}, std::byte{0xBE},
+       // Minor - u16
+       std::byte{0x00}, std::byte{0x00},
+       // Major - u16
+       std::byte{0x00}, std::byte{0x3D},
+       // Constant pool count + 1
+       std::byte{0x00}, std::byte{0x08},
+       // CP #1 - UTF8
+       std::byte{0x01}, std::byte{0x00}, std::byte{0x01}, std::byte{'A'},
+       // CP #2 - Class
+       std::byte{0x07}, std::byte{0x00}, std::byte{0x01},
+       // CP #3 - UTF8
+       std::byte{0x01}, std::byte{0x00}, std::byte{0x10}, std::byte{'j'},
+       std::byte{'a'}, std::byte{'v'}, std::byte{'a'}, std::byte{'/'},
+       std::byte{'l'}, std::byte{'a'}, std::byte{'n'}, std::byte{'g'},
+       std::byte{'/'}, std::byte{'O'}, std::byte{'b'}, std::byte{'j'},
+       std::byte{'e'}, std::byte{'c'}, std::byte{'t'},
+       // CP #4 - Class
+       std::byte{0x07}, std::byte{0x00}, std::byte{0x03},
+       // CP #5 - UTF8
+       std::byte{0x01}, std::byte{0x00}, std::byte{0x06}, std::byte{'<'},
+       std::byte{'i'}, std::byte{'n'}, std::byte{'i'}, std::byte{'t'},
+       std::byte{'>'},
+       // CP #6 - UTF8
+       std::byte{0x01}, std::byte{0x00}, std::byte{0x03}, std::byte{'('},
+       std::byte{')'}, std::byte{'V'},
+       // CP #7 - UTF8
+       std::byte{0x01}, std::byte{0x00}, std::byte{0x0A}, std::byte{'D'},
+       std::byte{'e'}, std::byte{'p'}, std::byte{'r'}, std::byte{'e'},
+       std::byte{'c'}, std::byte{'a'}, std::byte{'t'}, std::byte{'e'},
+       std::byte{'d'},
+       // Access flags
+       std::byte{0x00}, std::byte{0x31},
+       // Class index
+       std::byte{0x00}, std::byte{0x02},
+       // Superclass index
+       std::byte{0x00}, std::byte{0x04},
+       // Interface count
+       std::byte{0x00}, std::byte{0x00},
+       // Field count
+       std::byte{0x00}, std::byte{0x00},
+       // Method count
+       std::byte{0x00}, std::byte{0x01},
+       // Method access flags
+       std::byte{0x00}, std::byte{0x01},
+       // Method name index
+       std::byte{0x00}, std::byte{0x05},
+       // Method descriptor index
+       std::byte{0x00}, std::byte{0x06},
+       // Method attribute count
+       std::byte{0x00}, std::byte{0x00},
+       // Attribute count
+       std::byte{0x00}, std::byte{0x01},
+       // Attribute name index
+       std::byte{0x00}, std::byte{0x07},
+       // Attribute length
+       std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}});
 
-    kh::reader::Reader reader{input};
-    const auto result = parse_class_file(reader);
+  kh::reader::Reader reader{input};
+  const auto result = parse_class_file(reader);
 
-    ASSERT_TRUE(result);
+  ASSERT_TRUE(result);
 
-    const auto klass = result.value();
+  const auto klass = result.value();
 
-    ASSERT_EQ(61u, klass.version.major);
-    ASSERT_EQ(0u, klass.version.minor);
+  ASSERT_EQ(61u, klass.version.major);
+  ASSERT_EQ(0u, klass.version.minor);
 
-    const auto parsed_constant_pool = klass.constant_pool;
+  const auto parsed_constant_pool = klass.constant_pool;
 
-    ASSERT_EQ(7u, parsed_constant_pool.entries().size());
+  ASSERT_EQ(7u, parsed_constant_pool.entries().size());
 
-    {
-        using classfile::AccessFlags;
+  {
+    using classfile::AccessFlags;
 
-        ASSERT_EQ(
-            static_cast<uint16_t>(AccessFlags::ACC_FINAL)
-            | static_cast<uint16_t>(AccessFlags::ACC_PUBLIC)
-            | static_cast<uint16_t>(AccessFlags::ACC_SUPER),
-            klass.access_flags
-        );
-    }
+    ASSERT_EQ(static_cast<uint16_t>(AccessFlags::ACC_FINAL) |
+                  static_cast<uint16_t>(AccessFlags::ACC_PUBLIC) |
+                  static_cast<uint16_t>(AccessFlags::ACC_SUPER),
+              klass.access_flags);
+  }
 
-    ASSERT_EQ(1u, klass.methods.size());
-    ASSERT_EQ(1u, klass.attributes.size());
+  ASSERT_EQ(1u, klass.methods.size());
+  ASSERT_EQ(1u, klass.attributes.size());
 }
 
 } // namespace kh::jvm::parsing
