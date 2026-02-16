@@ -5,9 +5,6 @@
 #include <concepts>
 #include <cstdint>
 
-#ifdef __cplusplus
-extern "C++" {
-
 namespace kh::endian {
 
 template <typename T>
@@ -30,7 +27,5 @@ template <MultiByteIntegral V> auto big(V value) {
 }
 
 } // namespace kh::endian
-}
-#endif
 
 #endif // ENDIAN_H

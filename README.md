@@ -37,8 +37,12 @@ run on real-world datasets (such as `javac` outputs)
 
 To build the software, you'll need to perform the following steps:
 
-1. `cmake -DCMAKE_BUILD_TYPE=(Debug|Release) .`, this only needs to occur once
-unless very heavy CMake changes are made
+1. `cmake -DCMAKE_BUILD_TYPE=(Debug|Release) -S . -B build/`, this only needs to
+occur once unless very heavy CMake changes are made. If you wish to use
+`clang-tidy` and the associated `pre-commit` hooks, you'll also want to add the
+`-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` flag to ensure that the compilation database
+is present. For MacOS development, `-DCMAKE_OSX_SYSROOT=macosx` will be required
+to ensure that the proper SysRoot is included in the compilation command output.
 
 2. `make`
 
