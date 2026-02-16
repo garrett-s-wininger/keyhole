@@ -143,7 +143,7 @@ struct CLI {
         std::optional<CommandResult> dispatch_result = std::nullopt;
 
         ([args, &head, &next, &dispatch_result]{
-            if (Subcommands::name == next) { 
+            if (Subcommands::name == next) {
                 dispatch_result = Subcommands::execute(
                     head,
                     args.subspan(1)

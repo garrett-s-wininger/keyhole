@@ -67,7 +67,7 @@ parse_attribute(reader::Reader& reader) noexcept
 }
 
 auto parse_bytecode(kh::reader::Reader& reader)
-        -> std::expected<isa::InstructionSequence, Error> {    
+        -> std::expected<isa::InstructionSequence, Error> {
     auto result = isa::InstructionSequence{};
 
     // NOTE(garrett): For single-byte reads, we only support a single return
@@ -391,4 +391,3 @@ auto parse_class_file(kh::reader::Reader& reader)
 }
 
 } // namespace kh::jvm::parsing
-
